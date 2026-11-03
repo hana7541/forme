@@ -367,9 +367,13 @@ function TagSection() {
 }
 
 // ---------- 백업과 복원 ----------
+const NO_CATEGORY = "__none__";
+
 function BackupSection() {
   const { session } = useAuth();
-  const { reloadCounts } = useShell();
+  const { reloadCounts, counts } = useShell();
+  const [scope, setScope] = useState<"all" | "category">("all");
+  const [picked, setPicked] = useState<Set<string>>(new Set());
   const { show } = useToast();
   const [progress, setProgress] = useState<Progress | null>(null);
   const [busy, setBusy] = useState<"export" | "restore" | null>(null);
@@ -394,13 +398,23 @@ function BackupSection() {
     setError(null);
     setResult(null);
     try {
-      const { blob, missing, count } = await exportBackup(setProgress);
+      const categoryIds = scope === "category" ? [...picked].map((id) => (id === NO_CATEGORY ? null : id)) : undefined;
+      const { blob, missing, count } = await exportBackup(setProgress, { categoryIds });
       const d = new Date();
       const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+      // 파일 이름에 고른 카테고리 이름을 넣음 (예: forme-브랜딩-타이포그래피-20261104.zip)
+      const names =
+        scope === "category"
+          ? [...picked]
+              .map((id) => (id === NO_CATEGORY ? "카테고리없음" : counts?.categories.find((c) => c.id === id)?.name ?? ""))
+              .filter(Boolean)
+              .map((n) => n.replace(/[\\/:*?"<>|\s]+/g, ""))
+          : [];
+      const label = names.length > 3 ? `${names.slice(0, 3).join("-")}-외${names.length - 3}` : names.join("-");
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `forme-backup-${stamp}.zip`;
+      a.download = label ? `forme-${label}-${stamp}.zip` : `forme-backup-${stamp}.zip`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -456,9 +470,86 @@ function BackupSection() {
           <p className="mt-1 text-[13px] leading-relaxed text-graphite">
             이미지가 많으면 몇 분 걸릴 수 있어요. 끝날 때까지 이 화면을 닫지 마세요.
           </p>
-          <div className="mt-4">
-            <Button type="button" onClick={() => void doExport()} loading={busy === "export"} disabled={!!busy}>
-              백업 파일 내려받기
+
+          <div role="radiogroup" aria-label="백업 범위" className="mt-4 inline-flex rounded-full bg-haze p-1">
+            {(
+              [
+                ["all", "전체"],
+                ["category", "카테고리 고르기"],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                role="radio"
+                aria-checked={scope === v}
+                onClick={() => setScope(v)}
+                disabled={!!busy}
+                className={`h-9 rounded-full px-4 text-[13px] transition-colors ${scope === v ? "bg-paper font-medium text-ink shadow-[0_0_0_1px_var(--color-hairline)]" : "text-graphite hover:text-ink"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {scope === "all" ? (
+            <p className="mt-3 text-[13px] text-graphite tabular-nums">
+              레퍼런스 {counts?.total ?? 0}개와 컬렉션·무드보드를 모두 담아요.
+            </p>
+          ) : (
+            <div className="mt-4">
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  ...(counts?.categories ?? []).map((c) => ({ id: c.id, name: c.name, count: c.count })),
+                  {
+                    id: NO_CATEGORY,
+                    name: "카테고리 없음",
+                    count: Math.max(0, (counts?.total ?? 0) - (counts?.categories ?? []).reduce((n, c) => n + c.count, 0)),
+                  },
+                ].map((c) => {
+                  const on = picked.has(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      aria-pressed={on}
+                      disabled={!!busy}
+                      onClick={() =>
+                        setPicked((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(c.id)) next.delete(c.id);
+                          else next.add(c.id);
+                          return next;
+                        })
+                      }
+                      className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3.5 text-[13px] transition-colors ${
+                        on ? "border-ink bg-ink text-paper" : "border-hairline hover:border-ink"
+                      }`}
+                    >
+                      {c.name}
+                      <span className={`tabular-nums ${on ? "text-paper/70" : "text-graphite"}`}>{c.count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-3 text-[13px] leading-relaxed text-graphite">
+                고른 카테고리의 이미지와, 그 이미지가 들어 있는 컬렉션·무드보드만 담아요.
+              </p>
+            </div>
+          )}
+
+          <div className="mt-5">
+            <Button
+              type="button"
+              onClick={() => void doExport()}
+              loading={busy === "export"}
+              disabled={!!busy || (scope === "category" && picked.size === 0)}
+            >
+              {scope === "all"
+                ? "전체 백업 내려받기"
+                : picked.size
+                  ? `고른 카테고리 ${picked.size}개 내려받기`
+                  : "카테고리를 골라 주세요"}
             </Button>
           </div>
           {busy === "export" && progress && <ProgressBar p={progress} />}

@@ -84,7 +84,13 @@ async function runPool<T>(items: T[], limit: number, worker: (item: T, index: nu
 
 // ---------- 백업 ----------
 
-export async function exportBackup(onProgress: (p: Progress) => void): Promise<{ blob: Blob; missing: number; count: number }> {
+// categoryIds를 주면 그 카테고리의 레퍼런스만 담음 (null = '카테고리 없음')
+export type BackupScope = { categoryIds?: (string | null)[] };
+
+export async function exportBackup(
+  onProgress: (p: Progress) => void,
+  scope: BackupScope = {}
+): Promise<{ blob: Blob; missing: number; count: number }> {
   const supabase = getSupabase();
   onProgress({ stage: "정보 모으는 중", done: 0, total: 1 });
 
@@ -94,7 +100,7 @@ export async function exportBackup(onProgress: (p: Progress) => void): Promise<{
     ? await supabase.from("profiles").select("username, display_name").eq("id", uid).maybeSingle()
     : { data: null };
 
-  const [refs, categories, tags, refTags, collections, collectionRefs, moodboards, items] = await Promise.all([
+  const [allRefs, allCategories, allTags, allRefTags, allCollections, allCollectionRefs, allMoodboards, allItems] = await Promise.all([
     fetchAllRefs(),
     fetchAllRows("categories", "id, name, color, sort_order", "sort_order"),
     fetchAllRows("tags", "id, name", "name"),
@@ -104,6 +110,35 @@ export async function exportBackup(onProgress: (p: Progress) => void): Promise<{
     fetchAllRows("moodboards", "id, name, background, collection_id", "created_at"),
     fetchAllRows("moodboard_items", "moodboard_id, ref_id, x, y, width, height, rotation, z_index", "created_at"),
   ]);
+
+  // 카테고리를 골랐으면, 그 레퍼런스와 연결된 것만 남김
+  let refs = allRefs;
+  let categories = allCategories;
+  let tags = allTags;
+  let refTags = allRefTags;
+  let collections = allCollections;
+  let collectionRefs = allCollectionRefs;
+  let moodboards = allMoodboards;
+  let items = allItems;
+  if (scope.categoryIds) {
+    const pick = new Set(scope.categoryIds);
+    refs = allRefs.filter((r) => pick.has(r.category_id));
+    const refIds = new Set(refs.map((r) => r.id));
+    categories = allCategories.filter((c) => pick.has(c.id as string));
+    refTags = allRefTags.filter((rt) => refIds.has(rt.ref_id as string));
+    const tagIds = new Set(refTags.map((rt) => rt.tag_id as string));
+    tags = allTags.filter((t) => tagIds.has(t.id as string));
+    collectionRefs = allCollectionRefs.filter((cr) => refIds.has(cr.ref_id as string));
+    const colIds = new Set(collectionRefs.map((cr) => cr.collection_id as string));
+    collections = allCollections
+      .filter((c) => colIds.has(c.id as string))
+      .map((c) => (c.cover_ref_id && !refIds.has(c.cover_ref_id as string) ? { ...c, cover_ref_id: null } : c));
+    items = allItems.filter((i) => refIds.has(i.ref_id as string));
+    const boardIds = new Set(items.map((i) => i.moodboard_id as string));
+    moodboards = allMoodboards
+      .filter((b) => boardIds.has(b.id as string))
+      .map((b) => (b.collection_id && !colIds.has(b.collection_id as string) ? { ...b, collection_id: null } : b));
+  }
 
   const zip = new JSZip();
   const images = zip.folder("images")!;
