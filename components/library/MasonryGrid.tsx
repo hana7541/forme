@@ -129,7 +129,7 @@ function RefTile({
         onClick={(e) => (selectMode ? onToggleSelect?.(item, e.shiftKey) : onOpen(item))}
         aria-label={selectMode ? `${label} ${isSelected ? "선택 해제" : "선택"}` : `${label} 열기`}
         aria-pressed={selectMode ? isSelected : undefined}
-        className={`relative block w-full overflow-hidden rounded-[6px] transition-transform duration-150 focus-visible:outline-offset-2 ${
+        className={`relative block w-full overflow-hidden rounded-[10px] transition-transform duration-150 focus-visible:outline-offset-2 ${
           isSelected ? "scale-[0.96]" : ""
         }`}
         style={{ aspectRatio: ratio, backgroundColor: item.dominant_color ?? "var(--color-haze)" }}
@@ -150,7 +150,7 @@ function RefTile({
         {!selectMode && (
           <span className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/10" />
         )}
-        {isSelected && <span className="pointer-events-none absolute inset-0 rounded-[6px] shadow-[inset_0_0_0_2px_var(--color-ink)]" />}
+        {isSelected && <span className="pointer-events-none absolute inset-0 rounded-[10px] shadow-[inset_0_0_0_2px_var(--color-ink)]" />}
       </button>
 
       {selectMode && (

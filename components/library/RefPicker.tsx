@@ -100,7 +100,7 @@ export function RefPicker({ open, onClose, onPick, confirmLabel = (n) => `${n}�
                   onClick={() => toggle(r)}
                   aria-pressed={on}
                   aria-label={r.title || "제목 없는 레퍼런스"}
-                  className={`relative block aspect-square w-full overflow-hidden rounded-[6px] transition-transform ${on ? "scale-[0.94]" : ""}`}
+                  className={`relative block aspect-square w-full overflow-hidden rounded-[10px] transition-transform ${on ? "scale-[0.94]" : ""}`}
                   style={{ backgroundColor: r.dominant_color ?? "var(--color-haze)" }}
                 >
                   {url && (
@@ -118,7 +118,7 @@ export function RefPicker({ open, onClose, onPick, confirmLabel = (n) => `${n}�
                       </svg>
                     )}
                   </span>
-                  {on && <span className="pointer-events-none absolute inset-0 rounded-[6px] shadow-[inset_0_0_0_2px_var(--color-ink)]" />}
+                  {on && <span className="pointer-events-none absolute inset-0 rounded-[10px] shadow-[inset_0_0_0_2px_var(--color-ink)]" />}
                 </button>
               </li>
             );

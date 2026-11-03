@@ -47,7 +47,7 @@ export function GhostGrid({ animate }: { animate: boolean }) {
       {GHOST_RATIOS.map((ratio, i) => (
         <div
           key={i}
-          className={`${animate ? "ghost-tile" : ""} mb-4 break-inside-avoid rounded-[6px] bg-haze`}
+          className={`${animate ? "ghost-tile" : ""} mb-4 break-inside-avoid rounded-[10px] bg-haze`}
           style={{ aspectRatio: ratio, animationDelay: animate ? `${120 + i * 45}ms` : undefined }}
         />
       ))}

@@ -22,7 +22,7 @@ function Cell({ path, color, urls, className = "" }: { path?: string; color?: st
 function Mosaic({ c, urls }: { c: CollectionPreview; urls: Record<string, string> }) {
   const p = c.preview_paths;
   const col = c.preview_colors;
-  const frame = "grid aspect-[4/3] gap-[3px] overflow-hidden rounded-[6px]";
+  const frame = "grid aspect-[4/3] gap-[3px] overflow-hidden rounded-[10px]";
 
   if (p.length <= 1) return <div className={frame}><Cell path={p[0]} color={col[0]} urls={urls} /></div>;
   if (p.length === 2)
@@ -81,7 +81,7 @@ export default function CollectionsPage() {
       {collections === null && (
         <div className="grid grid-cols-1 gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="aspect-[4/3] rounded-[6px] bg-haze" />
+            <div key={i} className="aspect-[4/3] rounded-[10px] bg-haze" />
           ))}
         </div>
       )}
