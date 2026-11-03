@@ -432,8 +432,8 @@ export function LibraryView({ base, title, description, actions, empty, collecti
 
       {/* 카테고리 칩 + 정렬 · 필터 · 선택 */}
       {(items.length > 0 || refining || catParam) && (
-        <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-center">
-          <div className="-mx-4 flex min-w-0 flex-1 gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+        <div className="mb-5 flex items-center gap-3">
+          <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none] lg:flex-wrap lg:overflow-visible">
             {/* 카테고리를 고르면 제목·사이드바가 이미 보여 주므로 칩 줄은 숨김 */}
             {categoryFilter && !catParam && (
               <>
@@ -496,7 +496,7 @@ export function LibraryView({ base, title, description, actions, empty, collecti
             )}
           </div>
 
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="ml-auto flex shrink-0 items-center gap-1">
             <Popover
               label="정렬"
               align="end"

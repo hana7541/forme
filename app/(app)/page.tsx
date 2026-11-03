@@ -8,15 +8,15 @@ import { UploadIcon } from "@/components/icons";
 import { LibraryView } from "@/components/library/LibraryView";
 import type { RefFilter } from "@/lib/refs";
 
-function UploadCta({ text }: { text: string }) {
+function UploadCta({ text }: { text?: string }) {
   const { openUpload } = useShell();
   return (
     <div>
-      <p className="text-[15px] leading-relaxed text-graphite">{text}</p>
+      {text && <p className="mb-6 text-[15px] leading-relaxed text-graphite">{text}</p>}
       <button
         type="button"
         onClick={openUpload}
-        className="mt-6 inline-flex h-11 items-center gap-2 rounded-full border border-ink px-5 text-[14px] font-medium transition-colors hover:bg-ink hover:text-paper"
+        className="inline-flex h-11 items-center gap-2 rounded-full border border-ink px-5 text-[14px] font-medium transition-colors hover:bg-ink hover:text-paper"
       >
         <UploadIcon size={16} />
         이미지 올리기
@@ -76,7 +76,7 @@ function Home() {
   } else if (categoryId) {
     title = categoryName ?? "Category";
     description = `‘${categoryName ?? "이"}’ 카테고리의 레퍼런스예요. 여기서 올리면 이 카테고리로 바로 들어가요.`;
-    empty = <UploadCta text="이 카테고리에 넣은 레퍼런스가 아직 없어요. 이 화면에서 올리면 바로 이 카테고리로 들어가요." />;
+    empty = <UploadCta />;
   }
 
   return (
