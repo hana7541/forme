@@ -13,9 +13,13 @@ import { useToast } from "@/components/Toast";
 import { TagInput } from "@/components/library/TagInput";
 import { formatBytes } from "@/lib/image";
 import type { CategoryWithCount } from "@/lib/library";
+import type { CollectionPreview } from "@/lib/collections";
 import {
+  addRefsToCollection,
   addTagToRef,
   deleteRef,
+  fetchRefCollectionIds,
+  removeRefsFromCollection,
   fetchAllTags,
   fetchRefTags,
   gridPath,
@@ -30,6 +34,9 @@ import {
 type Props = {
   item: Ref;
   categories: CategoryWithCount[];
+  collections: CollectionPreview[];
+  currentCollectionId?: string;
+  onCollectionsChanged: (stillInCurrent: boolean) => void;
   onClose: () => void;
   onPrev?: () => void;
   onNext?: () => void;
@@ -70,7 +77,18 @@ function isTyping(target: EventTarget | null) {
   return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
 }
 
-export function RefDetail({ item, categories, onClose, onPrev, onNext, onChange, onDeleted }: Props) {
+export function RefDetail({
+  item,
+  categories,
+  collections,
+  currentCollectionId,
+  onCollectionsChanged,
+  onClose,
+  onPrev,
+  onNext,
+  onChange,
+  onDeleted,
+}: Props) {
   const { show } = useToast();
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -87,6 +105,7 @@ export function RefDetail({ item, categories, onClose, onPrev, onNext, onChange,
   const [deleting, setDeleting] = useState(false);
   const [imgUrl, setImgUrl] = useState<string | null>(null);
   const [fullLoaded, setFullLoaded] = useState(false);
+  const [inCollections, setInCollections] = useState<Set<string>>(new Set());
 
   const itemRef = useRef(item);
   itemRef.current = item;
@@ -134,6 +153,34 @@ export function RefDetail({ item, categories, onClose, onPrev, onNext, onChange,
   useEffect(() => {
     fetchAllTags().then(setAllTags).catch(() => {});
   }, []);
+
+  // 이 이미지가 들어 있는 컬렉션
+  useEffect(() => {
+    let cancelled = false;
+    setInCollections(new Set());
+    fetchRefCollectionIds(item.id)
+      .then((ids) => !cancelled && setInCollections(new Set(ids)))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [item.id]);
+
+  async function toggleCollection(id: string) {
+    const was = inCollections.has(id);
+    const next = new Set(inCollections);
+    if (was) next.delete(id);
+    else next.add(id);
+    setInCollections(next);
+    try {
+      if (was) await removeRefsFromCollection(id, [item.id]);
+      else await addRefsToCollection(id, [item.id]);
+      onCollectionsChanged(currentCollectionId ? next.has(currentCollectionId) : true);
+    } catch {
+      setInCollections(inCollections);
+      show("컬렉션을 바꾸지 못했어요.");
+    }
+  }
 
   // 저장
   const save = useCallback(
@@ -446,6 +493,30 @@ export function RefDetail({ item, categories, onClose, onPrev, onNext, onChange,
               <p className="mb-2 text-[13px] text-graphite">태그</p>
               <TagInput tags={tags} allTags={allTags} onAdd={(n) => void addTag(n)} onRemove={(t) => void removeTag(t)} busy={tagBusy} />
             </div>
+
+            {collections.length > 0 && (
+              <div>
+                <p className="mb-2 text-[13px] text-graphite">컬렉션</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {collections.map((c) => {
+                    const on = inCollections.has(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => void toggleCollection(c.id)}
+                        aria-pressed={on}
+                        className={`h-8 max-w-full truncate rounded-full border px-3.5 text-[13px] transition-colors ${
+                          on ? "border-ink bg-ink text-paper" : "border-hairline hover:border-ink"
+                        }`}
+                      >
+                        {c.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 border-t border-hairline pt-6 text-[13px]">
               <dt className="text-graphite">크기</dt>

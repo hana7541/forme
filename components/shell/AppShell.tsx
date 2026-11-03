@@ -1,7 +1,9 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { CollectionDialog } from "@/components/collections/CollectionDialog";
+import { useToast } from "@/components/Toast";
 import { useLibraryCounts, type LibraryCounts } from "@/lib/library";
 import { UploadManager, useUpload } from "@/components/upload/UploadManager";
 import { Sidebar } from "./Sidebar";
@@ -12,6 +14,8 @@ type ShellCtx = {
   countsError: string | null;
   reloadCounts: () => Promise<void>;
   openUpload: () => void;
+  // 새 컬렉션 만들기 (선택한 레퍼런스를 바로 넣을 수도 있음)
+  openNewCollection: (opts?: { refIds?: string[]; stay?: boolean; onCreated?: (id: string) => void }) => void;
 };
 
 const Ctx = createContext<ShellCtx | null>(null);
@@ -51,7 +55,19 @@ function ShellFrame({
 }) {
   const { data, error, reload } = counts;
   const { openPicker } = useUpload();
+  const { show } = useToast();
+  const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [newCollection, setNewCollection] = useState<{
+    refIds: string[];
+    stay: boolean;
+    onCreated?: (id: string) => void;
+  } | null>(null);
+
+  const openNewCollection = useCallback<ShellCtx["openNewCollection"]>((opts) => {
+    setNewCollection({ refIds: opts?.refIds ?? [], stay: !!opts?.stay, onCreated: opts?.onCreated });
+  }, []);
+  const closeNewCollection = useCallback(() => setNewCollection(null), []);
   const pathname = usePathname();
   const params = useSearchParams();
 
@@ -74,7 +90,7 @@ function ShellFrame({
   }, [drawerOpen]);
 
   return (
-    <Ctx.Provider value={{ counts: data, countsError: error, reloadCounts: reload, openUpload: openPicker }}>
+    <Ctx.Provider value={{ counts: data, countsError: error, reloadCounts: reload, openUpload: openPicker, openNewCollection }}>
       <div className="min-h-screen lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
         {/* PC: 고정 사이드바 */}
         <aside className="sticky top-0 hidden h-screen border-r border-hairline lg:block">
@@ -104,6 +120,19 @@ function ShellFrame({
           <main className="px-5 pb-24 pt-8 sm:px-8 lg:px-12 lg:pt-12">{children}</main>
         </div>
       </div>
+
+      <CollectionDialog
+        open={!!newCollection}
+        onClose={closeNewCollection}
+        refIds={newCollection?.refIds}
+        onSaved={(c) => {
+          const req = newCollection;
+          void reload();
+          req?.onCreated?.(c.id);
+          if (req?.stay) show(`‘${c.name}’ 컬렉션에 넣었어요`);
+          else router.push(`/collections/${c.id}`);
+        }}
+      />
     </Ctx.Provider>
   );
 }

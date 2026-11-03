@@ -46,9 +46,12 @@ type GridProps = {
   urls: Record<string, string>;
   onOpen: (ref: Ref) => void;
   onToggleFavorite: (ref: Ref) => void;
+  selectMode?: boolean;
+  selected?: Set<string>;
+  onToggleSelect?: (ref: Ref, range: boolean) => void;
 };
 
-export function MasonryGrid({ items, urls, onOpen, onToggleFavorite }: GridProps) {
+export function MasonryGrid({ items, urls, onOpen, onToggleFavorite, selectMode, selected, onToggleSelect }: GridProps) {
   const { ref, cols } = useColumnCount();
   const columns = useMemo(() => distribute(items, cols), [items, cols]);
 
@@ -63,6 +66,9 @@ export function MasonryGrid({ items, urls, onOpen, onToggleFavorite }: GridProps
               url={urls[gridPath(item)]}
               onOpen={onOpen}
               onToggleFavorite={onToggleFavorite}
+              selectMode={!!selectMode}
+              isSelected={!!selected?.has(item.id)}
+              onToggleSelect={onToggleSelect}
             />
           ))}
         </div>
@@ -76,22 +82,34 @@ function RefTile({
   url,
   onOpen,
   onToggleFavorite,
+  selectMode,
+  isSelected,
+  onToggleSelect,
 }: {
   item: Ref;
   url?: string;
   onOpen: (ref: Ref) => void;
   onToggleFavorite: (ref: Ref) => void;
+  selectMode: boolean;
+  isSelected: boolean;
+  onToggleSelect?: (ref: Ref, range: boolean) => void;
 }) {
   const [loaded, setLoaded] = useState(false);
   const ratio = item.width && item.height ? `${item.width} / ${item.height}` : "1 / 1";
   const label = item.title || "제목 없는 레퍼런스";
 
   return (
-    <div className="group relative overflow-hidden rounded-[3px]" style={{ backgroundColor: item.dominant_color ?? "var(--color-haze)" }}>
+    <div
+      className={`group relative overflow-hidden rounded-[3px] transition-[transform,box-shadow] duration-150 ${
+        isSelected ? "scale-[0.96] shadow-[0_0_0_2px_var(--color-paper),0_0_0_4px_var(--color-ink)]" : ""
+      }`}
+      style={{ backgroundColor: item.dominant_color ?? "var(--color-haze)" }}
+    >
       <button
         type="button"
-        onClick={() => onOpen(item)}
-        aria-label={`${label} 열기`}
+        onClick={(e) => (selectMode ? onToggleSelect?.(item, e.shiftKey) : onOpen(item))}
+        aria-label={selectMode ? `${label} ${isSelected ? "선택 해제" : "선택"}` : `${label} 열기`}
+        aria-pressed={selectMode ? isSelected : undefined}
         className="block w-full focus-visible:outline-offset-[-2px]"
         style={{ aspectRatio: ratio }}
       >
@@ -112,6 +130,22 @@ function RefTile({
         </span>
       </button>
 
+      {selectMode && (
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none absolute left-2 top-2 grid h-6 w-6 place-items-center rounded-full border-[1.5px] transition-colors ${
+            isSelected ? "border-ink bg-ink text-paper" : "border-white bg-black/15"
+          }`}
+        >
+          {isSelected && (
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <path d="M3.5 8.5 6.5 11.5 12.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </span>
+      )}
+
+      {!selectMode && (
       <button
         type="button"
         onClick={() => onToggleFavorite(item)}
@@ -123,6 +157,7 @@ function RefTile({
       >
         <HeartIcon size={16} className={item.is_favorite ? "fill-current" : ""} />
       </button>
+      )}
     </div>
   );
 }

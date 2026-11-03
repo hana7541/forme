@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { useToast } from "@/components/Toast";
 import { LogoutIcon, SettingsIcon } from "@/components/icons";
 
 export function ProfileMenu() {
   const { profile, signOut } = useAuth();
-  const { show } = useToast();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -58,7 +58,7 @@ export function ProfileMenu() {
           type="button"
           onClick={() => {
             setOpen(false);
-            show("설정은 STEP 12에서 열려요");
+            router.push("/settings");
           }}
           className="flex h-9 w-full items-center gap-3 rounded-lg px-3 text-[14px] text-graphite hover:bg-haze hover:text-ink"
         >
