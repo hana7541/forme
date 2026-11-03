@@ -7,6 +7,7 @@ import { useToast } from "@/components/Toast";
 import { MenuItem, Popover } from "@/components/Popover";
 import { ChevronDownIcon, CloseIcon, HeartIcon, SlidersIcon } from "@/components/icons";
 import { MasonryGrid, type TileActions } from "@/components/library/MasonryGrid";
+import { ListControls } from "@/components/library/ListControls";
 import { RefDetail } from "@/components/library/RefDetail";
 import { SelectionBar } from "@/components/library/SelectionBar";
 import { onRefCreated } from "@/lib/events";
@@ -426,12 +427,14 @@ export function LibraryView({ base, title, description, actions, empty, collecti
             <sup className="ml-2 align-super text-[13px] font-normal tracking-normal text-graphite tabular-nums sm:text-[15px]">{total ?? ""}</sup>
           </h1>
           {description && <div className="mt-4 max-w-xl text-[15px] leading-relaxed text-graphite">{description}</div>}
+          {/* 비어 있을 때 안내(이미지 올리기 버튼 등)는 서브카피 바로 아래 */}
+          {showEmpty && !refining && <div className="mt-6 max-w-md">{empty}</div>}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
       </header>
 
-      {/* 카테고리 칩 + 정렬 · 필터 · 선택 */}
-      {(items.length > 0 || refining || catParam) && (
+      {/* 카테고리 칩 + 정렬 · 필터 · 선택 (비어 있어도 같은 자리에 고정) */}
+      {
         <div className="mb-5 flex items-center gap-3">
           <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto [scrollbar-width:none] lg:flex-wrap lg:overflow-visible">
             {/* 카테고리를 고르면 제목·사이드바가 이미 보여 주므로 칩 줄은 숨김 */}
@@ -496,119 +499,66 @@ export function LibraryView({ base, title, description, actions, empty, collecti
             )}
           </div>
 
-          <div className="ml-auto flex shrink-0 items-center gap-1">
-            <Popover
-              label="정렬"
-              align="end"
-              width="w-40"
-              trigger={({ toggle, open }) => (
-                <button type="button" onClick={toggle} aria-expanded={open} className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] hover:bg-haze">
-                  <span className="text-graphite">정렬</span>
-                  <span className="font-medium">{oldest ? "오래된순" : "최신순"}</span>
-                  <ChevronDownIcon size={14} className="text-graphite" />
-                </button>
-              )}
-            >
-              {(close) => (
-                <>
-                  <MenuItem active={!oldest} onClick={() => { setParam("sort", null); close(); }}>
-                    최신순
-                  </MenuItem>
-                  <MenuItem active={oldest} onClick={() => { setParam("sort", "oldest"); close(); }}>
-                    오래된순
-                  </MenuItem>
-                </>
-              )}
-            </Popover>
-
-            <Popover
-              label="필터"
-              align="end"
-              width="w-64"
-              trigger={({ toggle, open }) => (
-                <button
-                  type="button"
-                  onClick={toggle}
-                  aria-expanded={open}
-                  aria-label="필터"
-                  className={`relative grid h-9 w-9 place-items-center rounded-full hover:bg-haze ${open ? "bg-haze" : ""}`}
-                >
-                  <SlidersIcon size={17} />
-                  {(tagParam || (favParam && !base.favorites)) && (
-                    <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-ink" aria-hidden="true" />
-                  )}
-                </button>
-              )}
-            >
-              {(close) => (
-                <div>
-                  {!base.favorites && (
-                    <>
-                      <MenuItem active={favParam} onClick={() => setParam("fav", favParam ? null : "1")}>
-                        <span className="inline-flex items-center gap-2">
-                          <HeartIcon size={14} /> 즐겨찾기만 보기
-                        </span>
-                      </MenuItem>
-                      <div className="my-1 h-px bg-hairline" />
-                    </>
-                  )}
-                  {!lockTag && (
-                    <>
-                      <p className="px-3 pb-1 pt-1.5 text-[12px] text-graphite">태그</p>
-                      {tags.filter((t) => t.ref_count > 0).length === 0 ? (
-                        <p className="px-3 pb-2.5 text-[13px] leading-relaxed text-graphite">
-                          아직 태그가 없어요. 이미지를 열어 태그를 붙여 보세요.
-                        </p>
-                      ) : (
-                        <div className="max-h-64 overflow-y-auto">
-                          {tags
-                            .filter((t) => t.ref_count > 0)
-                            .map((t) => (
-                              <MenuItem
-                                key={t.id}
-                                active={t.id === tagParam}
-                                onClick={() => {
-                                  setParam("tag", t.id === tagParam ? null : t.id);
-                                  close();
-                                }}
-                              >
-                                {t.name} <span className="text-graphite">{t.ref_count}</span>
-                              </MenuItem>
-                            ))}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-            </Popover>
-
-            {items.length > 0 && (
-              <button
-                type="button"
-                onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
-                aria-pressed={selectMode}
-                className={`ml-1 inline-flex h-9 items-center rounded-full px-3.5 text-[13px] transition-colors ${
-                  selectMode ? "bg-ink text-paper" : "border border-hairline hover:border-ink"
-                }`}
-              >
-                {selectMode ? "선택 끝내기" : "선택"}
-              </button>
+          <ListControls
+            sort={oldest ? "oldest" : "newest"}
+            sortOptions={[
+              { value: "newest", label: "최신순" },
+              { value: "oldest", label: "오래된순" },
+            ]}
+            onSort={(v) => setParam("sort", v === "oldest" ? "oldest" : null)}
+            filterActive={!!(tagParam || (favParam && !base.favorites))}
+            filter={(close) => (
+              <div>
+                {!base.favorites && (
+                  <>
+                    <MenuItem active={favParam} onClick={() => setParam("fav", favParam ? null : "1")}>
+                      <span className="inline-flex items-center gap-2">
+                        <HeartIcon size={14} /> 즐겨찾기만 보기
+                      </span>
+                    </MenuItem>
+                    <div className="my-1 h-px bg-hairline" />
+                  </>
+                )}
+                {!lockTag && (
+                  <>
+                    <p className="px-3 pb-1 pt-1.5 text-[12px] text-graphite">태그</p>
+                    {tags.filter((t) => t.ref_count > 0).length === 0 ? (
+                      <p className="px-3 pb-2.5 text-[13px] leading-relaxed text-graphite">
+                        아직 태그가 없어요. 이미지를 열어 태그를 붙여 보세요.
+                      </p>
+                    ) : (
+                      <div className="max-h-64 overflow-y-auto">
+                        {tags
+                          .filter((t) => t.ref_count > 0)
+                          .map((t) => (
+                            <MenuItem
+                              key={t.id}
+                              active={t.id === tagParam}
+                              onClick={() => {
+                                setParam("tag", t.id === tagParam ? null : t.id);
+                                close();
+                              }}
+                            >
+                              {t.name} <span className="text-graphite">{t.ref_count}</span>
+                            </MenuItem>
+                          ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             )}
-          </div>
+            selectMode={selectMode}
+            onToggleSelect={() => (selectMode ? exitSelect() : setSelectMode(true))}
+            selectDisabled={items.length === 0}
+          />
         </div>
-      )}
+      }
 
-      {showEmpty && (
-        <div className="mb-10 max-w-md">
-          {refining ? (
-            <p className="text-[15px] leading-relaxed text-graphite">
-              조건에 맞는 레퍼런스가 없어요. 위의 거름망을 풀어 보세요.
-            </p>
-          ) : (
-            empty
-          )}
-        </div>
+      {showEmpty && refining && (
+        <p className="mb-10 max-w-md text-[15px] leading-relaxed text-graphite">
+          조건에 맞는 레퍼런스가 없어요. 위의 거름망을 풀어 보세요.
+        </p>
       )}
       {loadError && <p className="mb-8 text-[15px] text-red-600">레퍼런스를 불러오지 못했어요: {loadError}</p>}
 
