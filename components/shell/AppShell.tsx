@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useLibraryCounts, type LibraryCounts } from "@/lib/library";
 import { UploadManager, useUpload } from "@/components/upload/UploadManager";
@@ -26,14 +26,17 @@ export function useShell() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const counts = useLibraryCounts();
   const params = useSearchParams();
-  const categoryId = params.get("category");
+  const pathname = usePathname();
+  const categoryId = pathname === "/" ? params.get("category") : null;
+  const collectionId = pathname.match(/^\/collections\/([0-9a-f-]{36})/)?.[1] ?? null;
+  const target = useMemo(() => ({ categoryId, collectionId }), [categoryId, collectionId]);
   const { reload } = counts;
   const onUploaded = useCallback(() => {
     void reload();
   }, [reload]);
 
   return (
-    <UploadManager currentCategoryId={categoryId} onUploaded={onUploaded}>
+    <UploadManager target={target} onUploaded={onUploaded}>
       <ShellFrame counts={counts}>{children}</ShellFrame>
     </UploadManager>
   );

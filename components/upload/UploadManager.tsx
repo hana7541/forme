@@ -5,24 +5,37 @@ import { useAuth } from "@/components/AuthProvider";
 import { CloseIcon } from "@/components/icons";
 import { emitRefCreated } from "@/lib/events";
 import { ACCEPTED_TYPES, validateImageFile } from "@/lib/image";
-import { uploadRef } from "@/lib/refs";
+import { saveFromUrl, uploadRef, type UploadTarget } from "@/lib/refs";
 
 type Status = "waiting" | "uploading" | "done" | "error";
 type Job = {
   key: string;
-  file: File;
+  file?: File;
+  url?: string;
   name: string;
   preview: string;
   status: Status;
   error?: string;
   pasted: boolean;
-  categoryId: string | null;
+  target: UploadTarget;
 };
 
 type UploadCtx = {
   openPicker: () => void;
   uploadFiles: (files: File[], opts?: { pasted?: boolean }) => void;
+  saveUrls: (urls: string[]) => void;
 };
+
+function isTyping(target: EventTarget | null) {
+  const el = target as HTMLElement | null;
+  return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+}
+
+export function looksLikeUrl(text: string) {
+  const t = text.trim();
+  if (!t || /\s/.test(t) || t.length > 2000) return false;
+  return /^https?:\/\/[^\s]+\.[^\s]+/i.test(t);
+}
 
 const Ctx = createContext<UploadCtx | null>(null);
 
@@ -45,11 +58,11 @@ function friendlyError(e: unknown): string {
 
 export function UploadManager({
   children,
-  currentCategoryId,
+  target,
   onUploaded,
 }: {
   children: React.ReactNode;
-  currentCategoryId: string | null;
+  target: UploadTarget;
   onUploaded: () => void;
 }) {
   const { session } = useAuth();
@@ -58,8 +71,8 @@ export function UploadManager({
   const inputRef = useRef<HTMLInputElement>(null);
   const running = useRef(0);
   const jobsRef = useRef<Job[]>([]);
-  const categoryRef = useRef<string | null>(currentCategoryId);
-  categoryRef.current = currentCategoryId;
+  const targetRef = useRef<UploadTarget>(target);
+  targetRef.current = target;
 
   const setJobsSync = useCallback((updater: (prev: Job[]) => Job[]) => {
     jobsRef.current = updater(jobsRef.current);
@@ -79,7 +92,10 @@ export function UploadManager({
       if (!next) break;
       running.current++;
       patchJob(next.key, { status: "uploading" });
-      uploadRef(next.file, { userId, categoryId: next.categoryId, pasted: next.pasted })
+      const work = next.file
+        ? uploadRef(next.file, { userId, target: next.target, pasted: next.pasted })
+        : saveFromUrl(next.url ?? "", { userId, target: next.target });
+      work
         .then((ref) => {
           patchJob(next.key, { status: "done" });
           emitRefCreated(ref);
@@ -106,9 +122,31 @@ export function UploadManager({
           status: invalid ? "error" : "waiting",
           error: invalid ?? undefined,
           pasted: !!opts?.pasted,
-          categoryId: categoryRef.current,
+          target: { ...targetRef.current },
         };
       });
+      setJobsSync((prev) => [...prev, ...added]);
+      pump();
+    },
+    [pump, setJobsSync]
+  );
+
+  const saveUrls = useCallback(
+    (urls: string[]) => {
+      const added: Job[] = urls
+        .map((u) => u.trim())
+        .filter(Boolean)
+        .map((url): Job => {
+          let name = url;
+          try {
+            const u = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
+            name = u.hostname.replace(/^www\./, "") + (u.pathname.length > 1 ? u.pathname : "");
+          } catch {
+            // 주소가 이상해도 서버가 알려 줌
+          }
+          return { key: crypto.randomUUID(), url, name, preview: "", status: "waiting", pasted: false, target: { ...targetRef.current } };
+        });
+      if (!added.length) return;
       setJobsSync((prev) => [...prev, ...added]);
       pump();
     },
@@ -121,18 +159,31 @@ export function UploadManager({
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
-      if (!files.length) return;
-      e.preventDefault();
-      uploadFiles(files, { pasted: true });
+      if (files.length) {
+        e.preventDefault();
+        uploadFiles(files, { pasted: true });
+        return;
+      }
+      // 입력칸 밖에서 이미지·웹페이지 주소를 붙여넣으면 URL로 저장
+      if (isTyping(e.target)) return;
+      const text = e.clipboardData?.getData("text/plain") ?? "";
+      if (looksLikeUrl(text)) {
+        e.preventDefault();
+        saveUrls([text.trim()]);
+      }
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [uploadFiles]);
+  }, [uploadFiles, saveUrls]);
 
   // 드래그 앤 드롭 (화면 어디든)
   useEffect(() => {
     let depth = 0;
-    const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
+    // 파일, 또는 다른 브라우저 탭에서 끌어온 이미지 링크
+    const hasFiles = (e: DragEvent) => {
+      const types = Array.from(e.dataTransfer?.types ?? []);
+      return types.includes("Files") || types.includes("text/uri-list");
+    };
 
     const onEnter = (e: DragEvent) => {
       if (!hasFiles(e)) return;
@@ -155,7 +206,15 @@ export function UploadManager({
       e.preventDefault();
       depth = 0;
       setDragging(false);
-      uploadFiles(Array.from(e.dataTransfer?.files ?? []));
+      const files = Array.from(e.dataTransfer?.files ?? []);
+      if (files.length) {
+        uploadFiles(files);
+        return;
+      }
+      const links = (e.dataTransfer?.getData("text/uri-list") ?? "")
+        .split(/\r?\n/)
+        .filter((l) => l && !l.startsWith("#") && looksLikeUrl(l));
+      if (links.length) saveUrls(links.slice(0, 20));
     };
 
     window.addEventListener("dragenter", onEnter);
@@ -168,7 +227,7 @@ export function UploadManager({
       window.removeEventListener("dragleave", onLeave);
       window.removeEventListener("drop", onDrop);
     };
-  }, [uploadFiles]);
+  }, [uploadFiles, saveUrls]);
 
   // 모두 성공하면 잠시 뒤 패널을 정리
   const active = jobs.some((j) => j.status === "waiting" || j.status === "uploading");
@@ -186,7 +245,7 @@ export function UploadManager({
   }
 
   return (
-    <Ctx.Provider value={{ openPicker, uploadFiles }}>
+    <Ctx.Provider value={{ openPicker, uploadFiles, saveUrls }}>
       {children}
 
       <input
@@ -212,7 +271,11 @@ export function UploadManager({
         <div className="relative px-6 text-center">
           <p className="text-[32px] font-semibold tracking-[-0.04em] sm:text-[48px]">여기에 놓으세요</p>
           <p className="mt-3 text-[15px] text-graphite">
-            {categoryRef.current ? "지금 보고 있는 카테고리에 바로 들어가요." : "라이브러리에 바로 올라가요."}
+            {targetRef.current.collectionId
+              ? "지금 보고 있는 컬렉션에 바로 들어가요."
+              : targetRef.current.categoryId
+                ? "지금 보고 있는 카테고리에 바로 들어가요."
+                : "라이브러리에 바로 올라가요."}
           </p>
         </div>
       </div>

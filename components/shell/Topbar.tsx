@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { CloseIcon, MenuIcon, PlusIcon, SearchIcon } from "@/components/icons";
+import { CloseIcon, MenuIcon, SearchIcon } from "@/components/icons";
+import { UploadButton } from "@/components/upload/UploadButton";
 import { ProfileMenu } from "./ProfileMenu";
-import { useShell } from "./AppShell";
 
 function SearchField({ autoFocus, onDone }: { autoFocus?: boolean; onDone?: () => void }) {
   const router = useRouter();
@@ -58,7 +58,6 @@ function SearchField({ autoFocus, onDone }: { autoFocus?: boolean; onDone?: () =
 }
 
 export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
-  const { openUpload } = useShell();
   const [mobileSearch, setMobileSearch] = useState(false);
 
   return (
@@ -89,14 +88,7 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
           >
             {mobileSearch ? <CloseIcon /> : <SearchIcon />}
           </button>
-          <button
-            type="button"
-            onClick={openUpload}
-            className="inline-flex h-10 items-center gap-2 rounded-full bg-ink px-3 text-[14px] font-medium text-paper transition-opacity hover:opacity-85 sm:px-4"
-          >
-            <PlusIcon size={16} />
-            <span className="hidden sm:inline">업로드</span>
-          </button>
+          <UploadButton />
           <ProfileMenu />
         </div>
       </div>
