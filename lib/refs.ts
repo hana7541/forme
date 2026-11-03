@@ -131,7 +131,7 @@ export async function signedUrls(paths: string[]): Promise<Record<string, string
   return result;
 }
 
-export function gridPath(ref: Ref) {
+export function gridPath(ref: Pick<Ref, "thumb_path" | "storage_path">) {
   return ref.thumb_path ?? ref.storage_path;
 }
 

@@ -108,3 +108,11 @@ export const TrashIcon = (p: IconProps) => (
     <path d="M4 6h12M8 6V4.5A.5.5 0 0 1 8.5 4h3a.5.5 0 0 1 .5.5V6M6 6l.7 9.2a1 1 0 0 0 1 .8h4.6a1 1 0 0 0 1-.8L14 6" />
   </Svg>
 );
+
+export const BoardIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="3.5" width="14" height="13" rx="1.5" />
+    <rect x="5.5" y="6" width="4.5" height="5.5" rx="0.5" />
+    <rect x="11.5" y="8.5" width="3" height="5" rx="0.5" />
+  </Svg>
+);

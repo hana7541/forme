@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { CloseIcon, GridIcon, HeartIcon, PlusIcon, SettingsIcon } from "@/components/icons";
+import { BoardIcon, CloseIcon, GridIcon, HeartIcon, PlusIcon, SettingsIcon } from "@/components/icons";
 import { useShell } from "./AppShell";
 
 type NavItemProps = {
@@ -94,6 +94,12 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
           label="즐겨찾기"
           count={counts?.favorites}
           icon={<HeartIcon />}
+        />
+        <NavItem
+          href="/moodboards"
+          active={pathname.startsWith("/moodboards")}
+          label="무드보드"
+          icon={<BoardIcon />}
         />
       </div>
 
