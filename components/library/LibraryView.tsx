@@ -434,9 +434,10 @@ export function LibraryView({ base, title, description, actions, empty, collecti
       {(items.length > 0 || refining || catParam) && (
         <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-center">
           <div className="-mx-4 flex min-w-0 flex-1 gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
-            {categoryFilter && (
+            {/* 카테고리를 고르면 제목·사이드바가 이미 보여 주므로 칩 줄은 숨김 */}
+            {categoryFilter && !catParam && (
               <>
-                <button type="button" onClick={() => setParam("category", null)} aria-pressed={!catParam} className={`${chip} ${!catParam ? chipOn : chipOff}`}>
+                <button type="button" onClick={() => setParam("category", null)} aria-pressed className={`${chip} ${chipOn}`}>
                   All
                 </button>
                 {(counts?.categories ?? []).map((c) => (
@@ -451,6 +452,20 @@ export function LibraryView({ base, title, description, actions, empty, collecti
                   </button>
                 ))}
               </>
+            )}
+            {/* 컬렉션 안에서는 제목이 컬렉션 이름이라, 고른 카테고리를 지울 수 있게 하나만 보여 줌 */}
+            {categoryFilter && catParam && base.collectionId && (
+              <span className={`${chip} ${chipOn} pr-1.5`}>
+                {counts?.categories.find((c) => c.id === catParam)?.name ?? "카테고리"}
+                <button
+                  type="button"
+                  onClick={() => setParam("category", null)}
+                  aria-label="카테고리 거름망 지우기"
+                  className="grid h-6 w-6 place-items-center rounded-full hover:bg-paper/15"
+                >
+                  <CloseIcon size={12} />
+                </button>
+              </span>
             )}
             {activeTag && (
               <span className={`${chip} ${chipOn} pr-1.5`}>
