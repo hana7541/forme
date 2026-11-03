@@ -419,13 +419,13 @@ export function LibraryView({ base, title, description, actions, empty, collecti
 
   return (
     <div>
-      <header className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+      <header className="mb-10 flex flex-col gap-6 md:mb-12 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
-          <h1 className="flex flex-wrap items-baseline gap-x-3 break-keep text-[30px] font-semibold leading-tight tracking-[-0.035em] sm:text-[36px]">
-            <span>{title}</span>
-            <span className="text-[17px] font-normal tracking-normal text-graphite tabular-nums sm:text-[19px]">{total ?? ""}</span>
+          <h1 className="break-keep text-[40px] font-semibold leading-[1.05] tracking-[-0.045em] sm:text-[52px] lg:text-[68px]">
+            {title}
+            <sup className="ml-2 align-super text-[13px] font-normal tracking-normal text-graphite tabular-nums sm:text-[15px]">{total ?? ""}</sup>
           </h1>
-          {description && <div className="mt-2 max-w-xl text-[15px] leading-relaxed text-graphite">{description}</div>}
+          {description && <div className="mt-4 max-w-xl text-[15px] leading-relaxed text-graphite">{description}</div>}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
       </header>
