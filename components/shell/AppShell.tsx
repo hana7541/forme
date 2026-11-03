@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useLibraryCounts, type LibraryCounts } from "@/lib/library";
-import { useToast } from "@/components/Toast";
+import { UploadManager, useUpload } from "@/components/upload/UploadManager";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
 
@@ -24,8 +24,30 @@ export function useShell() {
 
 // 로그인 후 모든 화면의 공통 틀: 사이드바 + 위쪽 바 + 본문
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { data, error, reload } = useLibraryCounts();
-  const { show } = useToast();
+  const counts = useLibraryCounts();
+  const params = useSearchParams();
+  const categoryId = params.get("category");
+  const { reload } = counts;
+  const onUploaded = useCallback(() => {
+    void reload();
+  }, [reload]);
+
+  return (
+    <UploadManager currentCategoryId={categoryId} onUploaded={onUploaded}>
+      <ShellFrame counts={counts}>{children}</ShellFrame>
+    </UploadManager>
+  );
+}
+
+function ShellFrame({
+  counts,
+  children,
+}: {
+  counts: ReturnType<typeof useLibraryCounts>;
+  children: React.ReactNode;
+}) {
+  const { data, error, reload } = counts;
+  const { openPicker } = useUpload();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = usePathname();
   const params = useSearchParams();
@@ -48,12 +70,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [drawerOpen]);
 
-  const openUpload = useCallback(() => {
-    show("업로드는 다음 단계(STEP 06)에서 열려요");
-  }, [show]);
-
   return (
-    <Ctx.Provider value={{ counts: data, countsError: error, reloadCounts: reload, openUpload }}>
+    <Ctx.Provider value={{ counts: data, countsError: error, reloadCounts: reload, openUpload: openPicker }}>
       <div className="min-h-screen lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
         {/* PC: 고정 사이드바 */}
         <aside className="sticky top-0 hidden h-screen border-r border-hairline lg:block">

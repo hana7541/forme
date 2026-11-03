@@ -1,0 +1,302 @@
+"use client";
+
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/components/AuthProvider";
+import { CloseIcon } from "@/components/icons";
+import { emitRefCreated } from "@/lib/events";
+import { ACCEPTED_TYPES, validateImageFile } from "@/lib/image";
+import { uploadRef } from "@/lib/refs";
+
+type Status = "waiting" | "uploading" | "done" | "error";
+type Job = {
+  key: string;
+  file: File;
+  name: string;
+  preview: string;
+  status: Status;
+  error?: string;
+  pasted: boolean;
+  categoryId: string | null;
+};
+
+type UploadCtx = {
+  openPicker: () => void;
+  uploadFiles: (files: File[], opts?: { pasted?: boolean }) => void;
+};
+
+const Ctx = createContext<UploadCtx | null>(null);
+
+export function useUpload() {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error("useUpload must be used inside <UploadManager>");
+  return ctx;
+}
+
+const CONCURRENCY = 3;
+
+function friendlyError(e: unknown): string {
+  const msg = e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String((e as { message: unknown }).message) : "";
+  if (/exceeded|too large|payload/i.test(msg)) return "파일이 너무 커요 (최대 20MB).";
+  if (/mime|type/i.test(msg)) return "지원하지 않는 형식이에요.";
+  if (/network|fetch/i.test(msg)) return "인터넷 연결을 확인해 주세요.";
+  if (/decode|image/i.test(msg)) return "이미지를 읽을 수 없어요.";
+  return msg ? `올리지 못했어요: ${msg}` : "올리지 못했어요.";
+}
+
+export function UploadManager({
+  children,
+  currentCategoryId,
+  onUploaded,
+}: {
+  children: React.ReactNode;
+  currentCategoryId: string | null;
+  onUploaded: () => void;
+}) {
+  const { session } = useAuth();
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const running = useRef(0);
+  const jobsRef = useRef<Job[]>([]);
+  const categoryRef = useRef<string | null>(currentCategoryId);
+  categoryRef.current = currentCategoryId;
+
+  const setJobsSync = useCallback((updater: (prev: Job[]) => Job[]) => {
+    jobsRef.current = updater(jobsRef.current);
+    setJobs(jobsRef.current);
+  }, []);
+
+  const patchJob = useCallback(
+    (key: string, patch: Partial<Job>) => setJobsSync((prev) => prev.map((j) => (j.key === key ? { ...j, ...patch } : j))),
+    [setJobsSync]
+  );
+
+  const pump = useCallback(() => {
+    const userId = session?.user.id;
+    if (!userId) return;
+    while (running.current < CONCURRENCY) {
+      const next = jobsRef.current.find((j) => j.status === "waiting");
+      if (!next) break;
+      running.current++;
+      patchJob(next.key, { status: "uploading" });
+      uploadRef(next.file, { userId, categoryId: next.categoryId, pasted: next.pasted })
+        .then((ref) => {
+          patchJob(next.key, { status: "done" });
+          emitRefCreated(ref);
+          onUploaded();
+        })
+        .catch((e) => patchJob(next.key, { status: "error", error: friendlyError(e) }))
+        .finally(() => {
+          running.current--;
+          pump();
+        });
+    }
+  }, [session, patchJob, onUploaded]);
+
+  const uploadFiles = useCallback(
+    (files: File[], opts?: { pasted?: boolean }) => {
+      if (!files.length) return;
+      const added: Job[] = files.map((file): Job => {
+        const invalid = validateImageFile(file);
+        return {
+          key: crypto.randomUUID(),
+          file,
+          name: opts?.pasted ? "붙여넣은 이미지" : file.name,
+          preview: invalid ? "" : URL.createObjectURL(file),
+          status: invalid ? "error" : "waiting",
+          error: invalid ?? undefined,
+          pasted: !!opts?.pasted,
+          categoryId: categoryRef.current,
+        };
+      });
+      setJobsSync((prev) => [...prev, ...added]);
+      pump();
+    },
+    [pump, setJobsSync]
+  );
+
+  const openPicker = useCallback(() => inputRef.current?.click(), []);
+
+  // 붙여넣기 (Cmd/Ctrl + V)
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
+      if (!files.length) return;
+      e.preventDefault();
+      uploadFiles(files, { pasted: true });
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [uploadFiles]);
+
+  // 드래그 앤 드롭 (화면 어디든)
+  useEffect(() => {
+    let depth = 0;
+    const hasFiles = (e: DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes("Files");
+
+    const onEnter = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth++;
+      setDragging(true);
+    };
+    const onOver = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+    };
+    const onLeave = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) setDragging(false);
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth = 0;
+      setDragging(false);
+      uploadFiles(Array.from(e.dataTransfer?.files ?? []));
+    };
+
+    window.addEventListener("dragenter", onEnter);
+    window.addEventListener("dragover", onOver);
+    window.addEventListener("dragleave", onLeave);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragenter", onEnter);
+      window.removeEventListener("dragover", onOver);
+      window.removeEventListener("dragleave", onLeave);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, [uploadFiles]);
+
+  // 모두 성공하면 잠시 뒤 패널을 정리
+  const active = jobs.some((j) => j.status === "waiting" || j.status === "uploading");
+  const failed = jobs.filter((j) => j.status === "error").length;
+  useEffect(() => {
+    if (!jobs.length || active || failed) return;
+    const t = setTimeout(() => clearJobs(), 3500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs.length, active, failed]);
+
+  function clearJobs() {
+    jobsRef.current.forEach((j) => j.preview && URL.revokeObjectURL(j.preview));
+    setJobsSync(() => []);
+  }
+
+  return (
+    <Ctx.Provider value={{ openPicker, uploadFiles }}>
+      {children}
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ACCEPTED_TYPES.join(",")}
+        multiple
+        hidden
+        onChange={(e) => {
+          uploadFiles(Array.from(e.target.files ?? []));
+          e.target.value = "";
+        }}
+      />
+
+      {/* 끌어다 놓을 때 덮이는 화면 */}
+      <div
+        aria-hidden={!dragging}
+        className={`pointer-events-none fixed inset-0 z-[70] flex items-center justify-center bg-paper/90 backdrop-blur-sm transition-opacity duration-200 ${
+          dragging ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        <div className="absolute inset-4 rounded-2xl border-[1.5px] border-dashed border-ink sm:inset-6" />
+        <div className="relative px-6 text-center">
+          <p className="text-[32px] font-semibold tracking-[-0.04em] sm:text-[48px]">여기에 놓으세요</p>
+          <p className="mt-3 text-[15px] text-graphite">
+            {categoryRef.current ? "지금 보고 있는 카테고리에 바로 들어가요." : "라이브러리에 바로 올라가요."}
+          </p>
+        </div>
+      </div>
+
+      {/* 올리는 중 패널 */}
+      {jobs.length > 0 && (
+        <UploadPanel jobs={jobs} active={active} failed={failed} onClose={clearJobs} />
+      )}
+    </Ctx.Provider>
+  );
+}
+
+function UploadPanel({
+  jobs,
+  active,
+  failed,
+  onClose,
+}: {
+  jobs: Job[];
+  active: boolean;
+  failed: number;
+  onClose: () => void;
+}) {
+  const done = jobs.filter((j) => j.status === "done").length;
+  const heading = active
+    ? `올리는 중 ${done}/${jobs.length}`
+    : failed
+      ? `${done}장 올림, ${failed}장 실패`
+      : `${done}장 모두 올렸어요`;
+
+  return (
+    <div className="fixed bottom-4 right-4 z-[55] w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden rounded-xl border border-hairline bg-paper sm:bottom-6 sm:right-6">
+      <div className="flex h-12 items-center justify-between border-b border-hairline pl-4 pr-2">
+        <p className="text-[14px] font-medium tabular-nums" role="status" aria-live="polite">
+          {heading}
+        </p>
+        {!active && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="닫기"
+            className="grid h-8 w-8 place-items-center rounded-full text-graphite hover:bg-haze hover:text-ink"
+          >
+            <CloseIcon size={16} />
+          </button>
+        )}
+      </div>
+      <div className="h-[2px] bg-haze">
+        <div
+          className="h-full bg-ink transition-[width] duration-300"
+          style={{ width: `${(jobs.filter((j) => j.status === "done" || j.status === "error").length / jobs.length) * 100}%` }}
+        />
+      </div>
+      <ul className="max-h-64 overflow-y-auto py-1.5">
+        {jobs.map((j) => (
+          <li key={j.key} className="flex items-center gap-3 px-4 py-2">
+            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-[3px] bg-haze">
+              {j.preview && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={j.preview} alt="" className="h-full w-full object-cover" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px]">{j.name}</p>
+              {j.status === "error" && <p className="truncate text-[12px] text-red-600">{j.error}</p>}
+            </div>
+            <JobStatus status={j.status} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function JobStatus({ status }: { status: Status }) {
+  if (status === "uploading")
+    return <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-hairline border-t-ink" aria-label="올리는 중" />;
+  if (status === "done")
+    return (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0" aria-label="완료">
+        <path d="M3.5 8.5 6.5 11.5 12.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  if (status === "error")
+    return <span className="shrink-0 text-[12px] text-red-600">실패</span>;
+  return <span className="shrink-0 text-[12px] text-graphite">대기</span>;
+}
