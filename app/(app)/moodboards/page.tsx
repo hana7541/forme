@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
+import { useShell } from "@/components/shell/AppShell";
 import { PlusIcon } from "@/components/icons";
 import { createMoodboard, fetchMoodboards, type MoodboardWithItems } from "@/lib/moodboards";
 import { gridPath, signedUrls } from "@/lib/refs";
@@ -12,7 +13,7 @@ import { gridPath, signedUrls } from "@/lib/refs";
 function BoardPreview({ board, urls }: { board: MoodboardWithItems; urls: Record<string, string> }) {
   const items = [...board.moodboard_items].sort((a, b) => a.z_index - b.z_index);
   if (!items.length) {
-    return <div className="aspect-[4/3] rounded-[3px] border border-hairline" style={{ backgroundColor: board.background }} />;
+    return <div className="aspect-[4/3] rounded-[6px] border border-hairline" style={{ backgroundColor: board.background }} />;
   }
   const minX = Math.min(...items.map((i) => i.x));
   const minY = Math.min(...items.map((i) => i.y));
@@ -27,7 +28,7 @@ function BoardPreview({ board, urls }: { board: MoodboardWithItems; urls: Record
   const scaleH = contentRatio > frame ? frame / contentRatio : 1;
 
   return (
-    <div className="relative aspect-[4/3] overflow-hidden rounded-[3px] border border-hairline" style={{ backgroundColor: board.background }}>
+    <div className="relative aspect-[4/3] overflow-hidden rounded-[6px] border border-hairline" style={{ backgroundColor: board.background }}>
       <div
         className="absolute"
         style={{
@@ -75,6 +76,7 @@ function timeAgo(iso: string) {
 export default function MoodboardsPage() {
   const router = useRouter();
   const { show } = useToast();
+  const { reloadCounts } = useShell();
   const [boards, setBoards] = useState<MoodboardWithItems[] | null>(null);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [creating, setCreating] = useState(false);
@@ -93,6 +95,7 @@ export default function MoodboardsPage() {
     setCreating(true);
     try {
       const board = await createMoodboard({ name: "새 무드보드" });
+      void reloadCounts();
       router.push(`/moodboards/${board.id}`);
     } catch {
       show("무드보드를 만들지 못했어요.");
@@ -102,15 +105,15 @@ export default function MoodboardsPage() {
 
   return (
     <div>
-      <header className="mb-10 flex flex-col gap-6 md:mb-14 md:flex-row md:items-end md:justify-between">
+      <header className="mb-10 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-[40px] font-semibold leading-[1.05] tracking-[-0.045em] sm:text-[52px] lg:text-[68px]">
-            무드보드
-            <sup className="ml-2 align-super text-[13px] font-normal tracking-normal text-graphite tabular-nums sm:text-[15px]">
+          <h1 className="flex flex-wrap items-baseline gap-x-3 text-[30px] font-semibold leading-tight tracking-[-0.035em] sm:text-[36px]">
+            <span>Moodboards</span>
+            <span className="text-[17px] font-normal tracking-normal text-graphite tabular-nums sm:text-[19px]">
               {boards?.length ?? ""}
-            </sup>
+            </span>
           </h1>
-          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-graphite">
+          <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-graphite">
             레퍼런스를 캔버스 위에 자유롭게 놓고, 크기를 바꾸고, 겹쳐 보는 곳이에요. 컬렉션 화면에서 바로 만들 수도 있어요.
           </p>
         </div>
@@ -128,7 +131,7 @@ export default function MoodboardsPage() {
       {boards === null && (
         <div className="grid grid-cols-1 gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="aspect-[4/3] rounded-[3px] bg-haze" />
+            <div key={i} className="aspect-[4/3] rounded-[6px] bg-haze" />
           ))}
         </div>
       )}

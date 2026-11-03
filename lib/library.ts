@@ -13,6 +13,7 @@ export type LibraryCounts = {
   categories: CategoryWithCount[];
   tags: TagWithCount[];
   collections: CollectionPreview[];
+  moodboards: number;
 };
 
 type CategoryRow = { id: string; name: string; sort_order: number; refs: { count: number }[] | null };
@@ -25,12 +26,13 @@ export function useLibraryCounts() {
   const load = useCallback(async () => {
     const supabase = getSupabase();
     try {
-      const [total, favorites, cats, tags, collections] = await Promise.all([
+      const [total, favorites, cats, tags, collections, boards] = await Promise.all([
         supabase.from("refs").select("id", { count: "exact", head: true }),
         supabase.from("refs").select("id", { count: "exact", head: true }).eq("is_favorite", true),
         supabase.from("categories").select("id, name, sort_order, refs(count)").order("sort_order"),
         fetchTagCounts(),
         fetchCollections(),
+        supabase.from("moodboards").select("id", { count: "exact", head: true }),
       ]);
 
       const firstError = total.error ?? favorites.error ?? cats.error;
@@ -48,6 +50,7 @@ export function useLibraryCounts() {
         })),
         tags,
         collections,
+        moodboards: boards.count ?? 0,
       });
       setError(null);
     } catch (e) {

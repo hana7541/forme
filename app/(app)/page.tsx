@@ -35,23 +35,26 @@ function Home() {
   // 사이드바에서 태그만 눌렀을 때는 그 태그가 화면의 주제
   const tagIsTopic = !!tagId && !categoryId && !q && view !== "favorites";
 
+  // 카테고리는 제목 아래 칩(= 사이드바 CATEGORIES)이 ?category= 로 거름
   const base = useMemo<RefFilter>(
     () => ({
       q,
       favorites: view === "favorites",
-      categoryId,
       tagId: tagIsTopic ? tagId : null,
     }),
-    [q, view, categoryId, tagId, tagIsTopic]
+    [q, view, tagId, tagIsTopic]
   );
 
-  let title: React.ReactNode = "전체";
+  const categoryName = categoryId ? counts?.categories.find((c) => c.id === categoryId)?.name : null;
+  let title: React.ReactNode = "All References";
+  let description: React.ReactNode = "작업하며 모은 레퍼런스를 한곳에서 찾고 정리해요.";
   let empty: React.ReactNode = (
     <UploadCta text="웹사이트, 브랜딩, 타이포그래피처럼 눈에 들어온 이미지를 이곳에 모아 두세요. 파일을 끌어다 놓거나, 복사한 이미지나 주소를 붙여넣어도 돼요." />
   );
 
   if (q) {
     title = `‘${q}’`;
+    description = "제목, 메모, 출처, 태그에서 찾은 결과예요.";
     empty = (
       <div className="text-[15px] leading-relaxed text-graphite">
         <p>제목, 메모, 출처, 태그에서 ‘{q}’를 찾지 못했어요. 다른 단어로 찾아보세요.</p>
@@ -62,14 +65,17 @@ function Home() {
     );
   } else if (tagIsTopic) {
     title = counts?.tags.find((t) => t.id === tagId)?.name ?? "태그";
+    description = "이 태그가 붙은 레퍼런스예요.";
     empty = <p className="text-[15px] leading-relaxed text-graphite">이 태그가 붙은 레퍼런스가 없어요.</p>;
   } else if (view === "favorites") {
-    title = "즐겨찾기";
+    title = "Favorites";
+    description = "하트를 누른 레퍼런스만 모았어요.";
     empty = (
       <p className="text-[15px] leading-relaxed text-graphite">마음에 드는 레퍼런스에 하트를 누르면 여기에 모여요.</p>
     );
   } else if (categoryId) {
-    title = counts?.categories.find((c) => c.id === categoryId)?.name ?? "카테고리";
+    title = categoryName ?? "Category";
+    description = `‘${categoryName ?? "이"}’ 카테고리의 레퍼런스예요. 여기서 올리면 이 카테고리로 바로 들어가요.`;
     empty = <UploadCta text="이 카테고리에 넣은 레퍼런스가 아직 없어요. 이 화면에서 올리면 바로 이 카테고리로 들어가요." />;
   }
 
@@ -77,9 +83,10 @@ function Home() {
     <LibraryView
       base={base}
       title={title}
-      description={q ? "제목, 메모, 출처, 태그에서 찾은 결과예요." : undefined}
+      description={description}
       empty={empty}
       lockTag={tagIsTopic}
+      categoryFilter
     />
   );
 }

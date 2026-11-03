@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
+import { useShell } from "@/components/shell/AppShell";
 import { Dialog } from "@/components/Dialog";
 import { Button } from "@/components/ui";
 import { ChevronLeftIcon, PlusIcon, TrashIcon } from "@/components/icons";
@@ -43,6 +44,7 @@ const toolBtn =
 export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
   const router = useRouter();
   const { show } = useToast();
+  const { reloadCounts } = useShell();
 
   const [name, setName] = useState(initial.name);
   const [background, setBackground] = useState(initial.background);
@@ -368,6 +370,7 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
     try {
       await deleteMoodboard(initial.id);
       dirty.current.clear();
+      void reloadCounts();
       router.replace("/moodboards");
       show("무드보드를 지웠어요");
     } catch {
@@ -380,7 +383,7 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
   const saveLabel = saveState === "saving" ? "저장 중…" : saveState === "saved" ? "저장됨" : saveState === "error" ? "저장 실패" : "";
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-paper">
+    <div className="fixed inset-0 z-[45] flex flex-col bg-paper">
       {/* 위쪽 도구 막대 */}
       <div className="flex min-h-16 flex-wrap items-center gap-2 border-b border-hairline px-3 py-2 sm:px-5">
         <Link

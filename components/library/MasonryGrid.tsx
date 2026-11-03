@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { HeartIcon } from "@/components/icons";
+import { MenuItem, Popover } from "@/components/Popover";
+import { ExternalIcon, FolderIcon, HeartIcon } from "@/components/icons";
+import type { CollectionPreview } from "@/lib/collections";
 import { gridPath, type Ref } from "@/lib/refs";
 
-// 화면 너비에 따라 기둥(열) 수 정하기
+// 본문 너비에 따라 열 수: 모바일 2 · 태블릿 3 · 데스크톱 4
 function columnsFor(width: number) {
   if (width < 560) return 2;
-  if (width < 900) return 3;
-  if (width < 1400) return 4;
-  return 5;
+  if (width < 860) return 3;
+  return 4;
 }
 
 function useColumnCount() {
@@ -27,7 +28,7 @@ function useColumnCount() {
   return { ref, cols };
 }
 
-// 새 이미지가 왼쪽 위부터 줄 순서대로 채워지도록, 가장 짧은 기둥에 하나씩 넣음
+// 가장 짧은 열에 하나씩 넣어 빈틈 없이 + 왼쪽 위부터 순서대로
 function distribute(items: Ref[], cols: number) {
   const columns: Ref[][] = Array.from({ length: cols }, () => []);
   const heights = new Array<number>(cols).fill(0);
@@ -41,31 +42,40 @@ function distribute(items: Ref[], cols: number) {
   return columns;
 }
 
+export type TileActions = {
+  collections: CollectionPreview[];
+  onToggleFavorite: (ref: Ref) => void;
+  onAddToCollection: (ref: Ref, collectionId: string) => void;
+  onNewCollection: (ref: Ref) => void;
+  onOpenOriginal: (ref: Ref) => void;
+  onDelete: (ref: Ref) => void;
+};
+
 type GridProps = {
   items: Ref[];
   urls: Record<string, string>;
   onOpen: (ref: Ref) => void;
-  onToggleFavorite: (ref: Ref) => void;
+  actions: TileActions;
   selectMode?: boolean;
   selected?: Set<string>;
   onToggleSelect?: (ref: Ref, range: boolean) => void;
 };
 
-export function MasonryGrid({ items, urls, onOpen, onToggleFavorite, selectMode, selected, onToggleSelect }: GridProps) {
+export function MasonryGrid({ items, urls, onOpen, actions, selectMode, selected, onToggleSelect }: GridProps) {
   const { ref, cols } = useColumnCount();
   const columns = useMemo(() => distribute(items, cols), [items, cols]);
 
   return (
-    <div ref={ref} className="flex items-start gap-3 sm:gap-4">
+    <div ref={ref} className="flex items-start gap-4">
       {columns.map((col, i) => (
-        <div key={i} className="flex min-w-0 flex-1 flex-col gap-3 sm:gap-4">
+        <div key={i} className="flex min-w-0 flex-1 flex-col gap-4">
           {col.map((item) => (
             <RefTile
               key={item.id}
               item={item}
               url={urls[gridPath(item)]}
               onOpen={onOpen}
-              onToggleFavorite={onToggleFavorite}
+              actions={actions}
               selectMode={!!selectMode}
               isSelected={!!selected?.has(item.id)}
               onToggleSelect={onToggleSelect}
@@ -77,11 +87,24 @@ export function MasonryGrid({ items, urls, onOpen, onToggleFavorite, selectMode,
   );
 }
 
+const actionBtn =
+  "grid h-8 w-8 place-items-center rounded-full bg-paper/92 text-ink backdrop-blur transition-colors hover:bg-paper";
+
+function DotsIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <circle cx="4.5" cy="10" r="1.5" />
+      <circle cx="10" cy="10" r="1.5" />
+      <circle cx="15.5" cy="10" r="1.5" />
+    </svg>
+  );
+}
+
 function RefTile({
   item,
   url,
   onOpen,
-  onToggleFavorite,
+  actions,
   selectMode,
   isSelected,
   onToggleSelect,
@@ -89,29 +112,27 @@ function RefTile({
   item: Ref;
   url?: string;
   onOpen: (ref: Ref) => void;
-  onToggleFavorite: (ref: Ref) => void;
+  actions: TileActions;
   selectMode: boolean;
   isSelected: boolean;
   onToggleSelect?: (ref: Ref, range: boolean) => void;
 }) {
   const [loaded, setLoaded] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const ratio = item.width && item.height ? `${item.width} / ${item.height}` : "1 / 1";
   const label = item.title || "제목 없는 레퍼런스";
 
   return (
-    <div
-      className={`group relative overflow-hidden rounded-[3px] transition-[transform,box-shadow] duration-150 ${
-        isSelected ? "scale-[0.96] shadow-[0_0_0_2px_var(--color-paper),0_0_0_4px_var(--color-ink)]" : ""
-      }`}
-      style={{ backgroundColor: item.dominant_color ?? "var(--color-haze)" }}
-    >
+    <div className="group relative">
       <button
         type="button"
         onClick={(e) => (selectMode ? onToggleSelect?.(item, e.shiftKey) : onOpen(item))}
         aria-label={selectMode ? `${label} ${isSelected ? "선택 해제" : "선택"}` : `${label} 열기`}
         aria-pressed={selectMode ? isSelected : undefined}
-        className="block w-full focus-visible:outline-offset-[-2px]"
-        style={{ aspectRatio: ratio }}
+        className={`relative block w-full overflow-hidden rounded-[6px] transition-transform duration-150 focus-visible:outline-offset-2 ${
+          isSelected ? "scale-[0.96]" : ""
+        }`}
+        style={{ aspectRatio: ratio, backgroundColor: item.dominant_color ?? "var(--color-haze)" }}
       >
         {url && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -122,19 +143,20 @@ function RefTile({
             decoding="async"
             draggable={false}
             onLoad={() => setLoaded(true)}
-            className={`h-full w-full object-cover transition-opacity duration-500 ${loaded ? "opacity-100" : "opacity-0"}`}
+            className={`h-full w-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
           />
         )}
-        {/* 호버: 아래쪽에 제목 */}
-        <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-linear-to-t from-black/55 to-transparent px-3 pb-2.5 pt-10 text-left opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100">
-          {item.title && <span className="line-clamp-2 text-[13px] font-medium text-white">{item.title}</span>}
-        </span>
+        {/* 호버: 아주 옅은 어둠만 */}
+        {!selectMode && (
+          <span className="pointer-events-none absolute inset-0 bg-black/0 transition-colors duration-200 group-hover:bg-black/10" />
+        )}
+        {isSelected && <span className="pointer-events-none absolute inset-0 rounded-[6px] shadow-[inset_0_0_0_2px_var(--color-ink)]" />}
       </button>
 
       {selectMode && (
         <span
           aria-hidden="true"
-          className={`pointer-events-none absolute left-2 top-2 grid h-6 w-6 place-items-center rounded-full border-[1.5px] transition-colors ${
+          className={`pointer-events-none absolute left-2.5 top-2.5 grid h-6 w-6 place-items-center rounded-full border-[1.5px] transition-colors ${
             isSelected ? "border-ink bg-ink text-paper" : "border-white bg-black/15"
           }`}
         >
@@ -146,18 +168,131 @@ function RefTile({
         </span>
       )}
 
+      {/* 호버하면 나타나는 버튼: 오른쪽 위 즐겨찾기·컬렉션, 오른쪽 아래 더보기 */}
       {!selectMode && (
-      <button
-        type="button"
-        onClick={() => onToggleFavorite(item)}
-        aria-pressed={item.is_favorite}
-        aria-label={item.is_favorite ? "즐겨찾기에서 빼기" : "즐겨찾기에 넣기"}
-        className={`absolute right-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-white/90 text-ink backdrop-blur transition-opacity duration-200 hover:bg-white ${
-          item.is_favorite ? "opacity-100" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
-        }`}
-      >
-        <HeartIcon size={16} className={item.is_favorite ? "fill-current" : ""} />
-      </button>
+        <>
+          <div className="absolute right-2.5 top-2.5 flex gap-1.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 has-[[data-open=true]]:opacity-100">
+            <Popover
+              label="컬렉션에 넣기"
+              align="end"
+              width="w-56"
+              trigger={({ toggle }) => (
+                <button type="button" onClick={toggle} aria-label="컬렉션에 넣기" className={actionBtn}>
+                  <FolderIcon size={15} />
+                </button>
+              )}
+            >
+              {(close) => (
+                <div className="max-h-64 overflow-y-auto">
+                  <p className="px-3 pb-1 pt-1.5 text-[12px] text-graphite">컬렉션에 넣기</p>
+                  {actions.collections.map((c) => (
+                    <MenuItem
+                      key={c.id}
+                      onClick={() => {
+                        actions.onAddToCollection(item, c.id);
+                        close();
+                      }}
+                    >
+                      {c.name}
+                    </MenuItem>
+                  ))}
+                  {actions.collections.length > 0 && <div className="my-1 h-px bg-hairline" />}
+                  <MenuItem
+                    onClick={() => {
+                      actions.onNewCollection(item);
+                      close();
+                    }}
+                  >
+                    + 새 컬렉션
+                  </MenuItem>
+                </div>
+              )}
+            </Popover>
+            <button
+              type="button"
+              onClick={() => actions.onToggleFavorite(item)}
+              aria-pressed={item.is_favorite}
+              aria-label={item.is_favorite ? "즐겨찾기에서 빼기" : "즐겨찾기에 넣기"}
+              className={actionBtn}
+            >
+              <HeartIcon size={15} className={item.is_favorite ? "fill-current" : ""} />
+            </button>
+          </div>
+
+          <div className="absolute bottom-2.5 right-2.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 has-[[data-open=true]]:opacity-100">
+            <Popover
+              label="더보기"
+              side="top"
+              align="end"
+              width="w-48"
+              trigger={({ toggle }) => (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDelete(false);
+                    toggle();
+                  }}
+                  aria-label="더보기"
+                  className={actionBtn}
+                >
+                  <DotsIcon />
+                </button>
+              )}
+            >
+              {(close) =>
+                confirmDelete ? (
+                  <div className="p-1.5">
+                    <p className="px-1.5 pb-2 pt-1 text-[13px] leading-relaxed">이미지와 메모가 함께 지워져요.</p>
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDelete(false)}
+                        className="h-8 flex-1 rounded-full text-[13px] hover:bg-haze"
+                      >
+                        취소
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          actions.onDelete(item);
+                          close();
+                        }}
+                        className="h-8 flex-1 rounded-full bg-red-600 text-[13px] font-medium text-white"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <MenuItem
+                      onClick={() => {
+                        close();
+                        onOpen(item);
+                      }}
+                    >
+                      자세히 보기
+                    </MenuItem>
+                    <MenuItem
+                      onClick={() => {
+                        close();
+                        actions.onOpenOriginal(item);
+                      }}
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        원본 열기 <ExternalIcon size={13} />
+                      </span>
+                    </MenuItem>
+                    <div className="my-1 h-px bg-hairline" />
+                    <MenuItem danger onClick={() => setConfirmDelete(true)}>
+                      삭제
+                    </MenuItem>
+                  </>
+                )
+              }
+            </Popover>
+          </div>
+        </>
       )}
     </div>
   );

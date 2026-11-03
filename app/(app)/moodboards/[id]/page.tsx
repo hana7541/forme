@@ -41,7 +41,7 @@ export default function MoodboardPage() {
 
   if (!board) {
     return (
-      <div className="fixed inset-0 z-40 flex items-center justify-center bg-paper">
+      <div className="fixed inset-0 z-[45] flex items-center justify-center bg-paper">
         <span className="h-5 w-5 animate-spin rounded-full border-2 border-hairline border-t-ink" />
       </div>
     );

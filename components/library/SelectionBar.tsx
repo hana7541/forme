@@ -28,7 +28,7 @@ type Props = {
 };
 
 const barBtn =
-  "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] text-paper/90 transition-colors hover:bg-white/10 hover:text-paper disabled:opacity-40";
+  "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] text-paper/90 transition-colors hover:bg-paper/10 hover:text-paper disabled:opacity-40";
 
 // 여러 장을 고른 뒤 아래에 뜨는 검은 막대
 export function SelectionBar(p: Props) {
@@ -214,7 +214,7 @@ export function SelectionBar(p: Props) {
               삭제
             </button>
 
-            <span className="mx-1 h-5 w-px shrink-0 bg-white/20" aria-hidden="true" />
+            <span className="mx-1 h-5 w-px shrink-0 bg-paper/20" aria-hidden="true" />
 
             {p.count < p.total && (
               <button type="button" className={barBtn} onClick={p.onSelectAll}>

@@ -645,8 +645,8 @@ function AccountSection() {
 export default function SettingsPage() {
   return (
     <div>
-      <header className="mb-10 md:mb-14">
-        <h1 className="text-[40px] font-semibold leading-[1.05] tracking-[-0.045em] sm:text-[52px] lg:text-[68px]">설정</h1>
+      <header className="mb-8">
+        <h1 className="flex flex-wrap items-baseline gap-x-3 text-[30px] font-semibold leading-tight tracking-[-0.035em] sm:text-[36px]">Settings</h1>
       </header>
       <ProfileSection />
       <PasswordSection />

@@ -5,9 +5,10 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CollectionDialog } from "@/components/collections/CollectionDialog";
 import { useToast } from "@/components/Toast";
 import { useLibraryCounts, type LibraryCounts } from "@/lib/library";
-import { UploadManager, useUpload } from "@/components/upload/UploadManager";
+import { UploadManager } from "@/components/upload/UploadManager";
 import { Sidebar } from "./Sidebar";
-import { Topbar } from "./Topbar";
+import { Header } from "./Header";
+import { AddModal } from "@/components/upload/AddModal";
 
 type ShellCtx = {
   counts: LibraryCounts | null;
@@ -54,7 +55,8 @@ function ShellFrame({
   children: React.ReactNode;
 }) {
   const { data, error, reload } = counts;
-  const { openPicker } = useUpload();
+  const [addOpen, setAddOpen] = useState(false);
+  const openUpload = useCallback(() => setAddOpen(true), []);
   const { show } = useToast();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -70,6 +72,17 @@ function ShellFrame({
   const closeNewCollection = useCallback(() => setNewCollection(null), []);
   const pathname = usePathname();
   const params = useSearchParams();
+
+  // Add New 창에 "어디로 들어가는지" 안내
+  const homeCategory = pathname === "/" ? params.get("category") : null;
+  const collectionMatch = pathname.match(/^\/collections\/([0-9a-f-]{36})/)?.[1] ?? null;
+  const destination = collectionMatch
+    ? `‘${data?.collections.find((c) => c.id === collectionMatch)?.name ?? "이"}’ 컬렉션에 바로 들어가요.`
+    : homeCategory
+      ? `‘${data?.categories.find((c) => c.id === homeCategory)?.name ?? "이"}’ 카테고리로 바로 들어가요.`
+      : pathname.startsWith("/moodboards/")
+        ? "라이브러리에 저장되고, 지금 보고 있는 무드보드에도 놓여요."
+        : null;
 
   // 메뉴에서 다른 곳으로 이동하면 서랍 닫기
   useEffect(() => {
@@ -90,10 +103,13 @@ function ShellFrame({
   }, [drawerOpen]);
 
   return (
-    <Ctx.Provider value={{ counts: data, countsError: error, reloadCounts: reload, openUpload: openPicker, openNewCollection }}>
-      <div className="min-h-screen lg:grid lg:grid-cols-[248px_minmax(0,1fr)]">
-        {/* PC: 고정 사이드바 */}
-        <aside className="sticky top-0 hidden h-screen border-r border-hairline lg:block">
+    <Ctx.Provider value={{ counts: data, countsError: error, reloadCounts: reload, openUpload, openNewCollection }}>
+      {/* 전체 너비 헤더 (스크롤해도 위에 고정) */}
+      <Header onOpenMenu={() => setDrawerOpen(true)} />
+
+      <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)]">
+        {/* PC: 헤더 아래 고정 사이드바 */}
+        <aside className="sticky top-16 hidden h-[calc(100dvh-4rem)] border-r border-hairline lg:block">
           <Sidebar />
         </aside>
 
@@ -115,11 +131,11 @@ function ShellFrame({
           </aside>
         </div>
 
-        <div className="min-w-0">
-          <Topbar onOpenMenu={() => setDrawerOpen(true)} />
-          <main className="px-5 pb-24 pt-8 sm:px-8 lg:px-12 lg:pt-12">{children}</main>
-        </div>
+        {/* 본문만 스크롤 */}
+        <main className="min-w-0 px-4 pb-24 pt-8 sm:px-6 lg:px-10 lg:pt-10">{children}</main>
       </div>
+
+      <AddModal open={addOpen} onClose={() => setAddOpen(false)} destination={destination} />
 
       <CollectionDialog
         open={!!newCollection}

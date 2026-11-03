@@ -64,6 +64,7 @@ function CollectionScreen() {
     setMakingBoard(true);
     try {
       const board = await createMoodboard({ name: collection.name, collectionId: collection.id });
+      void reloadCounts();
       router.push(`/moodboards/${board.id}`);
     } catch {
       show("무드보드를 만들지 못했어요.");
@@ -96,6 +97,7 @@ function CollectionScreen() {
       <LibraryView
         base={base}
         collectionId={id}
+        categoryFilter
         title={collection?.name ?? " "}
         description={collection?.description || undefined}
         actions={

@@ -39,7 +39,7 @@ export function Popover({ trigger, children, side = "bottom", align = "start", w
   const close = () => setOpen(false);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative" data-open={open}>
       {trigger({ open, toggle: () => setOpen((v) => !v) })}
       {open && (
         <div

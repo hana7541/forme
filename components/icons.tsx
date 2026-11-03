@@ -116,3 +116,17 @@ export const BoardIcon = (p: IconProps) => (
     <rect x="11.5" y="8.5" width="3" height="5" rx="0.5" />
   </Svg>
 );
+
+export const SlidersIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.5 6h8M15 6h1.5M3.5 14h2M9 14h7.5" />
+    <circle cx="13" cy="6" r="1.8" />
+    <circle cx="7" cy="14" r="1.8" />
+  </Svg>
+);
+
+export const ChevronDownIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M5.5 8 10 12.5 14.5 8" />
+  </Svg>
+);

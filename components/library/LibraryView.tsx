@@ -5,8 +5,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useShell } from "@/components/shell/AppShell";
 import { useToast } from "@/components/Toast";
 import { MenuItem, Popover } from "@/components/Popover";
-import { CloseIcon, HeartIcon } from "@/components/icons";
-import { MasonryGrid } from "@/components/library/MasonryGrid";
+import { ChevronDownIcon, CloseIcon, HeartIcon, SlidersIcon } from "@/components/icons";
+import { MasonryGrid, type TileActions } from "@/components/library/MasonryGrid";
 import { RefDetail } from "@/components/library/RefDetail";
 import { SelectionBar } from "@/components/library/SelectionBar";
 import { onRefCreated } from "@/lib/events";
@@ -38,7 +38,7 @@ export function GhostGrid({ animate }: { animate: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="columns-2 gap-3 sm:columns-3 sm:gap-4 lg:columns-4 2xl:columns-5"
+      className="columns-2 gap-4 md:columns-3 xl:columns-4"
       style={{
         maskImage: "linear-gradient(to bottom, black 0%, black 35%, transparent 95%)",
         WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 35%, transparent 95%)",
@@ -47,7 +47,7 @@ export function GhostGrid({ animate }: { animate: boolean }) {
       {GHOST_RATIOS.map((ratio, i) => (
         <div
           key={i}
-          className={`${animate ? "ghost-tile" : ""} mb-3 break-inside-avoid rounded-[3px] bg-haze sm:mb-4`}
+          className={`${animate ? "ghost-tile" : ""} mb-4 break-inside-avoid rounded-[6px] bg-haze`}
           style={{ aspectRatio: ratio, animationDelay: animate ? `${120 + i * 45}ms` : undefined }}
         />
       ))}
@@ -65,6 +65,8 @@ type Props = {
   collectionId?: string;
   // 태그 페이지처럼 이미 태그로 걸러진 화면이면 태그 필터를 숨김
   lockTag?: boolean;
+  // 제목 아래 카테고리 칩으로 걸러내기 (주소의 ?category= 사용)
+  categoryFilter?: boolean;
 };
 
 // 수정 후에도 이 목록에 남아 있어야 하는지 (즐겨찾기·카테고리 화면에서 조건이 바뀐 경우)
@@ -75,9 +77,11 @@ function stillBelongs(ref: Ref, f: RefFilter) {
 }
 
 const chip =
-  "inline-flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-[13px] transition-colors";
+  "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[13px] transition-colors";
+const chipOn = "border-ink bg-ink text-paper";
+const chipOff = "border-hairline text-ink hover:border-ink";
 
-export function LibraryView({ base, title, description, actions, empty, collectionId, lockTag }: Props) {
+export function LibraryView({ base, title, description, actions, empty, collectionId, lockTag, categoryFilter }: Props) {
   const { counts, reloadCounts, openNewCollection } = useShell();
   const { show } = useToast();
   const router = useRouter();
@@ -89,18 +93,21 @@ export function LibraryView({ base, title, description, actions, empty, collecti
   const tagParam = lockTag ? null : params.get("tag");
   const favParam = params.get("fav") === "1";
   const oldest = params.get("sort") === "oldest";
+  const catParam = categoryFilter ? params.get("category") : null;
 
   const filter = useMemo<RefFilter>(
     () => ({
       ...base,
+      categoryId: base.categoryId ?? catParam,
       tagId: base.tagId ?? tagParam,
       favorites: base.favorites || favParam,
       oldestFirst: oldest,
     }),
-    [base, tagParam, favParam, oldest]
+    [base, catParam, tagParam, favParam, oldest]
   );
   const filterKey = JSON.stringify(filter);
-  const refining = !!(tagParam || (favParam && !base.favorites));
+  // 컬렉션 안에서 카테고리로 거른 경우도 '걸러낸 상태'로 봄
+  const refining = !!(tagParam || (favParam && !base.favorites) || (catParam && base.collectionId));
 
   const [items, setItems] = useState<Ref[]>([]);
   const [total, setTotal] = useState<number | null>(null);
@@ -360,6 +367,47 @@ export function LibraryView({ base, title, description, actions, empty, collecti
     }
   }
 
+  // ---------- 카드 위 버튼 ----------
+
+  const tileActions: TileActions = {
+    collections: counts?.collections ?? [],
+    onToggleFavorite: (r) => void toggleFavorite(r),
+    onAddToCollection: (r, cid) =>
+      void addRefsToCollection(cid, [r.id])
+        .then(() => {
+          void reloadCounts();
+          const name = counts?.collections.find((c) => c.id === cid)?.name ?? "컬렉션";
+          show(`‘${name}’에 넣었어요`);
+        })
+        .catch(() => show("컬렉션에 넣지 못했어요.")),
+    onNewCollection: (r) => openNewCollection({ refIds: [r.id], stay: true }),
+    onOpenOriginal: (r) => {
+      // 팝업 차단을 피하려고 창을 먼저 열고, 주소를 받은 뒤 채움
+      const w = window.open("about:blank", "_blank");
+      signedUrls([r.storage_path])
+        .then((m) => {
+          const url = m[r.storage_path];
+          if (!url) throw new Error();
+          if (w) {
+            w.opener = null;
+            w.location.href = url;
+          } else window.location.href = url;
+        })
+        .catch(() => {
+          w?.close();
+          show("원본을 열지 못했어요.");
+        });
+    },
+    onDelete: (r) =>
+      void deleteRefs([r])
+        .then(() => {
+          removeLocal([r.id]);
+          void reloadCounts();
+          show("레퍼런스를 삭제했어요");
+        })
+        .catch(() => show("삭제하지 못했어요.")),
+  };
+
   // ---------- 화면 ----------
 
   const tags = counts?.tags ?? [];
@@ -371,105 +419,168 @@ export function LibraryView({ base, title, description, actions, empty, collecti
 
   return (
     <div>
-      <header className="mb-8 flex flex-col gap-6 md:mb-10 md:flex-row md:items-end md:justify-between">
+      <header className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
-          <h1 className="break-keep text-[40px] font-semibold leading-[1.05] tracking-[-0.045em] sm:text-[52px] lg:text-[68px]">
-            {title}
-            <sup className="ml-2 align-super text-[13px] font-normal tracking-normal text-graphite tabular-nums sm:text-[15px]">
-              {total ?? ""}
-            </sup>
+          <h1 className="flex flex-wrap items-baseline gap-x-3 break-keep text-[30px] font-semibold leading-tight tracking-[-0.035em] sm:text-[36px]">
+            <span>{title}</span>
+            <span className="text-[17px] font-normal tracking-normal text-graphite tabular-nums sm:text-[19px]">{total ?? ""}</span>
           </h1>
-          {description && <div className="mt-4 max-w-xl text-[15px] leading-relaxed text-graphite">{description}</div>}
+          {description && <div className="mt-2 max-w-xl text-[15px] leading-relaxed text-graphite">{description}</div>}
         </div>
         {actions && <div className="flex shrink-0 flex-wrap gap-2">{actions}</div>}
       </header>
 
-      {/* 걸러내기 막대 */}
-      {(items.length > 0 || refining) && (
-        <div className="mb-6 flex flex-wrap items-center gap-2">
-          {!lockTag && (
-            <Popover
-              label="태그로 걸러내기"
-              width="w-64"
-              trigger={({ toggle }) =>
-                activeTag ? (
-                  <span className={`${chip} border-ink bg-ink pr-1.5 text-paper`}>
-                    <button type="button" onClick={toggle} className="max-w-[12rem] truncate">
-                      {activeTag.name}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setParam("tag", null)}
-                      aria-label="태그 거름망 지우기"
-                      className="grid h-6 w-6 place-items-center rounded-full hover:bg-white/15"
-                    >
-                      <CloseIcon size={12} />
-                    </button>
-                  </span>
-                ) : (
-                  <button type="button" onClick={toggle} className={`${chip} border-hairline hover:border-ink`}>
-                    태그
+      {/* 카테고리 칩 + 정렬 · 필터 · 선택 */}
+      {(items.length > 0 || refining || catParam) && (
+        <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-center">
+          <div className="-mx-4 flex min-w-0 flex-1 gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:-mx-6 sm:px-6 md:mx-0 md:flex-wrap md:overflow-visible md:px-0">
+            {categoryFilter && (
+              <>
+                <button type="button" onClick={() => setParam("category", null)} aria-pressed={!catParam} className={`${chip} ${!catParam ? chipOn : chipOff}`}>
+                  All
+                </button>
+                {(counts?.categories ?? []).map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setParam("category", c.id === catParam ? null : c.id)}
+                    aria-pressed={c.id === catParam}
+                    className={`${chip} ${c.id === catParam ? chipOn : chipOff}`}
+                  >
+                    {c.name}
                   </button>
-                )
-              }
+                ))}
+              </>
+            )}
+            {activeTag && (
+              <span className={`${chip} ${chipOn} pr-1.5`}>
+                {activeTag.name}
+                <button
+                  type="button"
+                  onClick={() => setParam("tag", null)}
+                  aria-label="태그 거름망 지우기"
+                  className="grid h-6 w-6 place-items-center rounded-full hover:bg-paper/15"
+                >
+                  <CloseIcon size={12} />
+                </button>
+              </span>
+            )}
+            {favParam && !base.favorites && (
+              <span className={`${chip} ${chipOn} pr-1.5`}>
+                <HeartIcon size={13} className="fill-current" />
+                즐겨찾기만
+                <button
+                  type="button"
+                  onClick={() => setParam("fav", null)}
+                  aria-label="즐겨찾기 거름망 지우기"
+                  className="grid h-6 w-6 place-items-center rounded-full hover:bg-paper/15"
+                >
+                  <CloseIcon size={12} />
+                </button>
+              </span>
+            )}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1">
+            <Popover
+              label="정렬"
+              align="end"
+              width="w-40"
+              trigger={({ toggle, open }) => (
+                <button type="button" onClick={toggle} aria-expanded={open} className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] hover:bg-haze">
+                  <span className="text-graphite">정렬</span>
+                  <span className="font-medium">{oldest ? "오래된순" : "최신순"}</span>
+                  <ChevronDownIcon size={14} className="text-graphite" />
+                </button>
+              )}
             >
-              {(close) =>
-                tags.filter((t) => t.ref_count > 0).length === 0 ? (
-                  <p className="px-3 py-2.5 text-[13px] leading-relaxed text-graphite">
-                    아직 태그가 없어요. 이미지를 열어 태그를 붙여 보세요.
-                  </p>
-                ) : (
-                  <div className="max-h-72 overflow-y-auto">
-                    {tags
-                      .filter((t) => t.ref_count > 0)
-                      .map((t) => (
-                        <MenuItem
-                          key={t.id}
-                          active={t.id === tagParam}
-                          onClick={() => {
-                            setParam("tag", t.id === tagParam ? null : t.id);
-                            close();
-                          }}
-                        >
-                          {t.name} <span className="text-graphite">{t.ref_count}</span>
-                        </MenuItem>
-                      ))}
-                  </div>
-                )
-              }
+              {(close) => (
+                <>
+                  <MenuItem active={!oldest} onClick={() => { setParam("sort", null); close(); }}>
+                    최신순
+                  </MenuItem>
+                  <MenuItem active={oldest} onClick={() => { setParam("sort", "oldest"); close(); }}>
+                    오래된순
+                  </MenuItem>
+                </>
+              )}
             </Popover>
-          )}
 
-          {!base.favorites && (
-            <button
-              type="button"
-              onClick={() => setParam("fav", favParam ? null : "1")}
-              aria-pressed={favParam}
-              className={`${chip} ${favParam ? "border-ink bg-ink text-paper" : "border-hairline hover:border-ink"}`}
+            <Popover
+              label="필터"
+              align="end"
+              width="w-64"
+              trigger={({ toggle, open }) => (
+                <button
+                  type="button"
+                  onClick={toggle}
+                  aria-expanded={open}
+                  aria-label="필터"
+                  className={`relative grid h-9 w-9 place-items-center rounded-full hover:bg-haze ${open ? "bg-haze" : ""}`}
+                >
+                  <SlidersIcon size={17} />
+                  {(tagParam || (favParam && !base.favorites)) && (
+                    <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-ink" aria-hidden="true" />
+                  )}
+                </button>
+              )}
             >
-              <HeartIcon size={14} className={favParam ? "fill-current" : ""} />
-              즐겨찾기만
-            </button>
-          )}
+              {(close) => (
+                <div>
+                  {!base.favorites && (
+                    <>
+                      <MenuItem active={favParam} onClick={() => setParam("fav", favParam ? null : "1")}>
+                        <span className="inline-flex items-center gap-2">
+                          <HeartIcon size={14} /> 즐겨찾기만 보기
+                        </span>
+                      </MenuItem>
+                      <div className="my-1 h-px bg-hairline" />
+                    </>
+                  )}
+                  {!lockTag && (
+                    <>
+                      <p className="px-3 pb-1 pt-1.5 text-[12px] text-graphite">태그</p>
+                      {tags.filter((t) => t.ref_count > 0).length === 0 ? (
+                        <p className="px-3 pb-2.5 text-[13px] leading-relaxed text-graphite">
+                          아직 태그가 없어요. 이미지를 열어 태그를 붙여 보세요.
+                        </p>
+                      ) : (
+                        <div className="max-h-64 overflow-y-auto">
+                          {tags
+                            .filter((t) => t.ref_count > 0)
+                            .map((t) => (
+                              <MenuItem
+                                key={t.id}
+                                active={t.id === tagParam}
+                                onClick={() => {
+                                  setParam("tag", t.id === tagParam ? null : t.id);
+                                  close();
+                                }}
+                              >
+                                {t.name} <span className="text-graphite">{t.ref_count}</span>
+                              </MenuItem>
+                            ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </Popover>
 
-          <button
-            type="button"
-            onClick={() => setParam("sort", oldest ? null : "oldest")}
-            className={`${chip} border-hairline hover:border-ink`}
-          >
-            {oldest ? "오래된순" : "최신순"}
-          </button>
-
-          {items.length > 0 && (
-            <button
-              type="button"
-              onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
-              aria-pressed={selectMode}
-              className={`${chip} ml-auto ${selectMode ? "border-ink bg-ink text-paper" : "border-hairline hover:border-ink"}`}
-            >
-              {selectMode ? "선택 끝내기" : "선택"}
-            </button>
-          )}
+            {items.length > 0 && (
+              <button
+                type="button"
+                onClick={() => (selectMode ? exitSelect() : setSelectMode(true))}
+                aria-pressed={selectMode}
+                className={`ml-1 inline-flex h-9 items-center rounded-full px-3.5 text-[13px] transition-colors ${
+                  selectMode ? "bg-ink text-paper" : "border border-hairline hover:border-ink"
+                }`}
+              >
+                {selectMode ? "선택 끝내기" : "선택"}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -493,7 +604,7 @@ export function LibraryView({ base, title, description, actions, empty, collecti
           items={items}
           urls={urls}
           onOpen={openRef}
-          onToggleFavorite={(r) => void toggleFavorite(r)}
+          actions={tileActions}
           selectMode={selectMode}
           selected={selected}
           onToggleSelect={toggleSelect}
