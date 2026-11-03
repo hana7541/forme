@@ -1,73 +1,115 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useAuth } from "@/components/AuthProvider";
-import { getSupabase } from "@/lib/supabase/client";
-import { Button } from "@/components/ui";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useShell } from "@/components/shell/AppShell";
+import { UploadIcon } from "@/components/icons";
 
-type Category = { id: string; name: string; sort_order: number };
+// 빈 화면에 깔리는 자리 칸들의 비율 (실제 레퍼런스가 쌓일 모양을 미리 보여 줌)
+const GHOST_RATIOS = [
+  "3 / 4", "1 / 1", "4 / 5", "2 / 3", "5 / 4", "3 / 4", "4 / 3",
+  "2 / 3", "1 / 1", "3 / 5", "4 / 5", "5 / 4", "3 / 4", "1 / 1", "2 / 3",
+];
 
-export default function HomePage() {
-  const { profile, signOut } = useAuth();
-  const [categories, setCategories] = useState<Category[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+function useViewTitle() {
+  const params = useSearchParams();
+  const { counts } = useShell();
+  const view = params.get("view");
+  const categoryId = params.get("category");
+  const q = params.get("q");
 
-  useEffect(() => {
-    getSupabase()
-      .from("categories")
-      .select("id, name, sort_order")
-      .order("sort_order")
-      .then(({ data, error }) => {
-        if (error) setLoadError(error.message);
-        else setCategories((data as Category[]) ?? []);
-      });
-  }, []);
+  if (q) return { title: `‘${q}’`, count: 0, kind: "search" as const, q };
+  if (view === "favorites") return { title: "즐겨찾기", count: counts?.favorites, kind: "favorites" as const, q: undefined };
+  if (categoryId) {
+    const c = counts?.categories.find((x) => x.id === categoryId);
+    return { title: c?.name ?? "카테고리", count: c?.count, kind: "category" as const, q: undefined };
+  }
+  return { title: "전체", count: counts?.total, kind: "all" as const, q: undefined };
+}
+
+function EmptyMessage({ kind, q }: { kind: "all" | "favorites" | "category" | "search"; q?: string }) {
+  const { openUpload } = useShell();
+
+  if (kind === "favorites") {
+    return (
+      <p className="max-w-md text-[15px] leading-relaxed text-graphite">
+        마음에 드는 레퍼런스에 하트를 누르면 여기에 모여요.
+      </p>
+    );
+  }
+  if (kind === "search") {
+    return (
+      <div className="max-w-md text-[15px] leading-relaxed text-graphite">
+        <p>‘{q}’와 맞는 레퍼런스가 없어요. 다른 단어로 찾아보세요.</p>
+        <Link href="/" className="mt-3 inline-block text-ink underline underline-offset-4">
+          검색 지우기
+        </Link>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen">
-      <header className="flex h-16 items-center justify-between border-b border-[var(--line)] px-6">
-        <span className="text-lg font-semibold tracking-[-0.04em]">FORME</span>
-        <div className="flex items-center gap-3">
-          <span className="hidden text-sm text-[var(--muted)] sm:inline">
-            {profile ? `@${profile.username}` : ""}
-          </span>
-          <Button variant="ghost" className="h-9 px-3 text-sm" onClick={() => void signOut()}>
-            로그아웃
-          </Button>
+    <div className="max-w-md">
+      <p className="text-[15px] leading-relaxed text-graphite">
+        {kind === "category"
+          ? "이 카테고리에 넣은 레퍼런스가 아직 없어요."
+          : "웹사이트, 브랜딩, 타이포그래피처럼 눈에 들어온 이미지를 이곳에 모아 두세요. 파일을 끌어다 놓거나, 복사한 이미지를 붙여넣어도 돼요."}
+      </p>
+      <button
+        type="button"
+        onClick={openUpload}
+        className="mt-6 inline-flex h-11 items-center gap-2 rounded-full border border-ink px-5 text-[14px] font-medium transition-colors hover:bg-ink hover:text-paper"
+      >
+        <UploadIcon size={16} />
+        이미지 올리기
+      </button>
+    </div>
+  );
+}
+
+function LibraryView() {
+  const { title, count, kind, q } = useViewTitle();
+
+  return (
+    <div>
+      <header className="mb-10 md:mb-14">
+        <h1 className="font-display text-[44px] leading-[1.05] tracking-[-0.02em] sm:text-[56px] lg:text-[72px]">
+          {title}
+          <sup className="ml-2 align-super font-sans text-[13px] font-normal tracking-normal text-graphite tabular-nums sm:text-[15px]">
+            {typeof count === "number" ? count : ""}
+          </sup>
+        </h1>
+        <div className="mt-5">
+          <EmptyMessage kind={kind} q={q} />
         </div>
       </header>
 
-      <main className="mx-auto max-w-2xl px-6 py-20">
-        <p className="text-sm text-[var(--muted)]">STEP 04 · 로그인 완료</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">
-          안녕하세요, {profile?.display_name ?? "디자이너"}님
-        </h1>
-        <p className="mt-3 text-[var(--muted)]">
-          다음 단계에서 이곳에 레퍼런스를 모을 수 있게 만들 거예요.
-        </p>
-
-        <section className="mt-12">
-          <h2 className="text-sm font-medium">내 기본 카테고리</h2>
-          <p className="mt-1 text-xs text-[var(--muted)]">
-            가입할 때 창고 도우미가 자동으로 만들어 둔 카테고리예요.
-          </p>
-
-          <div className="mt-4 flex flex-wrap gap-2">
-            {loadError && <p className="text-sm text-red-500">불러오지 못했어요: {loadError}</p>}
-            {!loadError && categories === null && (
-              <p className="text-sm text-[var(--muted)]">불러오는 중…</p>
-            )}
-            {categories?.map((c) => (
-              <span
-                key={c.id}
-                className="rounded-full border border-[var(--line)] px-3.5 py-1.5 text-sm"
-              >
-                {c.name}
-              </span>
-            ))}
-          </div>
-        </section>
-      </main>
+      {/* 아직 비어 있는 그리드: 레퍼런스가 쌓일 자리 */}
+      <div
+        aria-hidden="true"
+        className="relative columns-2 gap-3 sm:columns-3 sm:gap-4 lg:columns-4 2xl:columns-5"
+        style={{
+          maskImage: "linear-gradient(to bottom, black 0%, black 35%, transparent 95%)",
+          WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 35%, transparent 95%)",
+        }}
+      >
+        {GHOST_RATIOS.map((ratio, i) => (
+          <div
+            key={i}
+            className="ghost-tile mb-3 break-inside-avoid rounded-[3px] bg-haze sm:mb-4"
+            style={{ aspectRatio: ratio, animationDelay: `${120 + i * 45}ms` }}
+          />
+        ))}
+      </div>
     </div>
+  );
+}
+
+export default function LibraryPage() {
+  return (
+    <Suspense fallback={null}>
+      <LibraryView />
+    </Suspense>
   );
 }

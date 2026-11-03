@@ -46,7 +46,7 @@ export function Button({
   ...props
 }: ButtonProps) {
   const base =
-    "inline-flex h-11 items-center justify-center gap-2 rounded-lg px-4 text-[15px] font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
+    "inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-[15px] font-medium transition disabled:cursor-not-allowed disabled:opacity-50";
   const look =
     variant === "primary"
       ? "bg-[var(--ink)] text-[var(--bg)] hover:opacity-90"
