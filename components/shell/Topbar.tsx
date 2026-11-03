@@ -72,7 +72,7 @@ export function Topbar({ onOpenMenu }: { onOpenMenu: () => void }) {
         >
           <MenuIcon />
         </button>
-        <Link href="/" className="font-display text-[22px] leading-none md:hidden">
+        <Link href="/" className="text-[20px] font-bold leading-none tracking-[-0.05em] md:hidden">
           FORME
         </Link>
 

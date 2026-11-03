@@ -4,7 +4,6 @@
    화면은 흑백, 색은 레퍼런스 이미지만 갖는다 */
 @theme {
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-display: "Bodoni Moda", "Noto Serif KR", "Times New Roman", serif;
 
   --color-paper: #ffffff;
   --color-ink: #000000;

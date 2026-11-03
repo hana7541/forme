@@ -37,7 +37,7 @@ export function ProfileMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="내 계정 메뉴"
-        className="grid h-10 w-10 place-items-center rounded-full border border-hairline font-display text-[17px] transition-colors hover:border-ink"
+        className="grid h-10 w-10 place-items-center rounded-full border border-hairline text-[15px] font-semibold transition-colors hover:border-ink"
       >
         {initial}
       </button>

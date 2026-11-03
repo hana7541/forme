@@ -74,7 +74,7 @@ function LibraryView() {
   return (
     <div>
       <header className="mb-10 md:mb-14">
-        <h1 className="font-display text-[44px] leading-[1.05] tracking-[-0.02em] sm:text-[56px] lg:text-[72px]">
+        <h1 className="text-[40px] font-semibold leading-[1.05] tracking-[-0.045em] sm:text-[52px] lg:text-[68px]">
           {title}
           <sup className="ml-2 align-super font-sans text-[13px] font-normal tracking-normal text-graphite tabular-nums sm:text-[15px]">
             {typeof count === "number" ? count : ""}

@@ -24,5 +24,5 @@
 | hairline | `#E8E8E6` | 구분선, 테두리 |
 | haze | `#F4F4F2` | 빈 칸, 선택된 메뉴 |
 
-- 글꼴: 본문 Pretendard / 워드마크·화면 제목 Bodoni Moda + Noto Serif KR
+- 글꼴: Pretendard 하나로 통일 (큰 제목은 굵고 촘촘한 자간)
 - 색은 레퍼런스 이미지만 갖고, 화면 자체는 흑백

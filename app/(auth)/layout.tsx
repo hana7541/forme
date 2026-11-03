@@ -18,7 +18,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
     <main className="min-h-screen lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       <section className="flex flex-col justify-between border-hairline px-6 pb-10 pt-8 sm:px-10 lg:border-r lg:px-14 lg:pb-14 lg:pt-12">
         <p className="text-[13px] text-graphite">디자이너를 위한 개인 레퍼런스 아카이브</p>
-        <h1 className="mt-16 font-display text-[64px] leading-[0.9] tracking-[-0.03em] sm:text-[96px] lg:mt-0 lg:text-[clamp(96px,11vw,176px)]">
+        <h1 className="mt-16 text-[64px] font-bold leading-[0.9] tracking-[-0.06em] sm:text-[96px] lg:mt-0 lg:text-[clamp(96px,11vw,176px)]">
           FORME
         </h1>
         <p className="mt-6 hidden max-w-sm text-[15px] leading-relaxed text-graphite lg:block">

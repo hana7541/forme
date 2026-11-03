@@ -50,7 +50,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   return (
     <nav className="flex h-full flex-col overflow-y-auto px-5 pb-6 pt-6">
       <div className="mb-10 flex items-center justify-between px-2.5">
-        <Link href="/" className="font-display text-[26px] leading-none tracking-[-0.01em]">
+        <Link href="/" className="text-[22px] font-bold leading-none tracking-[-0.05em]">
           FORME
         </Link>
         {onClose && (
