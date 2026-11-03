@@ -84,8 +84,10 @@ async function runPool<T>(items: T[], limit: number, worker: (item: T, index: nu
 
 // ---------- 백업 ----------
 
-// categoryIds를 주면 그 카테고리의 레퍼런스만 담음 (null = '카테고리 없음')
-export type BackupScope = { categoryIds?: (string | null)[] };
+// 범위를 고르면 그 레퍼런스만 담음
+// - categoryIds: 고른 카테고리의 레퍼런스 (null = '카테고리 없음')
+// - collectionIds: 고른 컬렉션에 들어 있는 레퍼런스
+export type BackupScope = { categoryIds?: (string | null)[]; collectionIds?: string[] };
 
 export async function exportBackup(
   onProgress: (p: Progress) => void,
@@ -111,7 +113,7 @@ export async function exportBackup(
     fetchAllRows("moodboard_items", "moodboard_id, ref_id, x, y, width, height, rotation, z_index", "created_at"),
   ]);
 
-  // 카테고리를 골랐으면, 그 레퍼런스와 연결된 것만 남김
+  // 범위를 골랐으면, 그 레퍼런스와 연결된 것만 남김
   let refs = allRefs;
   let categories = allCategories;
   let tags = allTags;
@@ -120,19 +122,38 @@ export async function exportBackup(
   let collectionRefs = allCollectionRefs;
   let moodboards = allMoodboards;
   let items = allItems;
-  if (scope.categoryIds) {
-    const pick = new Set(scope.categoryIds);
-    refs = allRefs.filter((r) => pick.has(r.category_id));
+  if (scope.categoryIds || scope.collectionIds) {
+    const byCollection = !!scope.collectionIds;
+    const pickedCols = new Set(scope.collectionIds ?? []);
+    const pickedCats = new Set(scope.categoryIds ?? []);
+
+    if (byCollection) {
+      const inPicked = new Set(
+        allCollectionRefs.filter((cr) => pickedCols.has(cr.collection_id as string)).map((cr) => cr.ref_id as string)
+      );
+      refs = allRefs.filter((r) => inPicked.has(r.id));
+    } else {
+      refs = allRefs.filter((r) => pickedCats.has(r.category_id));
+    }
     const refIds = new Set(refs.map((r) => r.id));
-    categories = allCategories.filter((c) => pick.has(c.id as string));
+
+    // 카테고리: 카테고리로 골랐으면 고른 것, 컬렉션으로 골랐으면 담긴 이미지가 쓰는 것
+    const usedCats = new Set(refs.map((r) => r.category_id).filter(Boolean) as string[]);
+    categories = allCategories.filter((c) => (byCollection ? usedCats : pickedCats).has(c.id as string));
+
     refTags = allRefTags.filter((rt) => refIds.has(rt.ref_id as string));
     const tagIds = new Set(refTags.map((rt) => rt.tag_id as string));
     tags = allTags.filter((t) => tagIds.has(t.id as string));
-    collectionRefs = allCollectionRefs.filter((cr) => refIds.has(cr.ref_id as string));
-    const colIds = new Set(collectionRefs.map((cr) => cr.collection_id as string));
+
+    // 컬렉션: 컬렉션으로 골랐으면 고른 것만, 카테고리로 골랐으면 담긴 이미지가 들어 있는 것
+    collectionRefs = allCollectionRefs.filter(
+      (cr) => refIds.has(cr.ref_id as string) && (!byCollection || pickedCols.has(cr.collection_id as string))
+    );
+    const colIds = byCollection ? pickedCols : new Set(collectionRefs.map((cr) => cr.collection_id as string));
     collections = allCollections
       .filter((c) => colIds.has(c.id as string))
       .map((c) => (c.cover_ref_id && !refIds.has(c.cover_ref_id as string) ? { ...c, cover_ref_id: null } : c));
+
     items = allItems.filter((i) => refIds.has(i.ref_id as string));
     const boardIds = new Set(items.map((i) => i.moodboard_id as string));
     moodboards = allMoodboards

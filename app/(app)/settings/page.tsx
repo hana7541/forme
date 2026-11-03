@@ -372,8 +372,25 @@ const NO_CATEGORY = "__none__";
 function BackupSection() {
   const { session } = useAuth();
   const { reloadCounts, counts } = useShell();
-  const [scope, setScope] = useState<"all" | "category">("all");
-  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [scope, setScope] = useState<"all" | "category" | "collection">("all");
+  const [pickedCats, setPickedCats] = useState<Set<string>>(new Set());
+  const [pickedCols, setPickedCols] = useState<Set<string>>(new Set());
+  const picked = scope === "collection" ? pickedCols : pickedCats;
+  const setPicked = scope === "collection" ? setPickedCols : setPickedCats;
+  const unit = scope === "collection" ? "컬렉션" : "카테고리";
+
+  // 지금 고를 수 있는 목록 (카테고리 또는 컬렉션)
+  const options =
+    scope === "collection"
+      ? (counts?.collections ?? []).map((c) => ({ id: c.id, name: c.name, count: c.ref_count }))
+      : [
+          ...(counts?.categories ?? []).map((c) => ({ id: c.id, name: c.name, count: c.count })),
+          {
+            id: NO_CATEGORY,
+            name: "카테고리 없음",
+            count: Math.max(0, (counts?.total ?? 0) - (counts?.categories ?? []).reduce((n, c) => n + c.count, 0)),
+          },
+        ];
   const { show } = useToast();
   const [progress, setProgress] = useState<Progress | null>(null);
   const [busy, setBusy] = useState<"export" | "restore" | null>(null);
@@ -398,18 +415,19 @@ function BackupSection() {
     setError(null);
     setResult(null);
     try {
-      const categoryIds = scope === "category" ? [...picked].map((id) => (id === NO_CATEGORY ? null : id)) : undefined;
-      const { blob, missing, count } = await exportBackup(setProgress, { categoryIds });
+      const categoryIds = scope === "category" ? [...pickedCats].map((id) => (id === NO_CATEGORY ? null : id)) : undefined;
+      const collectionIds = scope === "collection" ? [...pickedCols] : undefined;
+      const { blob, missing, count } = await exportBackup(setProgress, { categoryIds, collectionIds });
       const d = new Date();
       const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
-      // 파일 이름에 고른 카테고리 이름을 넣음 (예: forme-브랜딩-타이포그래피-20261104.zip)
+      // 파일 이름에 고른 카테고리·컬렉션 이름을 넣음 (예: forme-브랜딩-20261104.zip)
       const names =
-        scope === "category"
-          ? [...picked]
-              .map((id) => (id === NO_CATEGORY ? "카테고리없음" : counts?.categories.find((c) => c.id === id)?.name ?? ""))
+        scope === "all"
+          ? []
+          : [...picked]
+              .map((id) => (id === NO_CATEGORY ? "카테고리없음" : options.find((o) => o.id === id)?.name ?? ""))
               .filter(Boolean)
-              .map((n) => n.replace(/[\\/:*?"<>|\s]+/g, ""))
-          : [];
+              .map((n) => n.replace(/[\\/:*?"<>|\s]+/g, ""));
       const label = names.length > 3 ? `${names.slice(0, 3).join("-")}-외${names.length - 3}` : names.join("-");
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -475,7 +493,8 @@ function BackupSection() {
             {(
               [
                 ["all", "전체"],
-                ["category", "카테고리 고르기"],
+                ["category", "카테고리별"],
+                ["collection", "컬렉션별"],
               ] as const
             ).map(([v, label]) => (
               <button
@@ -499,14 +518,7 @@ function BackupSection() {
           ) : (
             <div className="mt-4">
               <div className="flex flex-wrap gap-1.5">
-                {[
-                  ...(counts?.categories ?? []).map((c) => ({ id: c.id, name: c.name, count: c.count })),
-                  {
-                    id: NO_CATEGORY,
-                    name: "카테고리 없음",
-                    count: Math.max(0, (counts?.total ?? 0) - (counts?.categories ?? []).reduce((n, c) => n + c.count, 0)),
-                  },
-                ].map((c) => {
+                {options.map((c) => {
                   const on = picked.has(c.id);
                   return (
                     <button
@@ -532,8 +544,13 @@ function BackupSection() {
                   );
                 })}
               </div>
+              {scope === "collection" && options.length === 0 && (
+                <p className="text-[13px] text-graphite">아직 컬렉션이 없어요.</p>
+              )}
               <p className="mt-3 text-[13px] leading-relaxed text-graphite">
-                고른 카테고리의 이미지와, 그 이미지가 들어 있는 컬렉션·무드보드만 담아요.
+                {scope === "collection"
+                  ? "고른 컬렉션과 그 안의 이미지, 그 이미지가 놓인 무드보드만 담아요."
+                  : "고른 카테고리의 이미지와, 그 이미지가 들어 있는 컬렉션·무드보드만 담아요."}
               </p>
             </div>
           )}
@@ -543,13 +560,13 @@ function BackupSection() {
               type="button"
               onClick={() => void doExport()}
               loading={busy === "export"}
-              disabled={!!busy || (scope === "category" && picked.size === 0)}
+              disabled={!!busy || (scope !== "all" && picked.size === 0)}
             >
               {scope === "all"
                 ? "전체 백업 내려받기"
                 : picked.size
-                  ? `고른 카테고리 ${picked.size}개 내려받기`
-                  : "카테고리를 골라 주세요"}
+                  ? `고른 ${unit} ${picked.size}개 내려받기`
+                  : `${unit}${scope === "collection" ? "을" : "를"} 골라 주세요`}
             </Button>
           </div>
           {busy === "export" && progress && <ProgressBar p={progress} />}
