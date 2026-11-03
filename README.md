@@ -9,5 +9,6 @@
 ## 진행 상황
 
 - [x] STEP 01 · Supabase 프로젝트 생성
-- [ ] STEP 02 · 웹앱 뼈대 + GitHub · Vercel 연결
-- [ ] STEP 03 · 데이터베이스 구축
+- [x] STEP 02 · 웹앱 뼈대 + GitHub · Vercel 연결
+- [x] STEP 03 · 데이터베이스 구축 (테이블 9개, RLS, Storage `refs` 버킷, 가입 트리거)
+- [ ] STEP 04 · 회원가입 / 로그인 (Username → `username@forme.local` 내부 이메일)

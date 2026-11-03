@@ -9,6 +9,7 @@
   --ink: #1c1917;
   --muted: #78716c;
   --line: #e7e5e4;
+  --field: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -17,6 +18,7 @@
     --ink: #fafaf9;
     --muted: #a8a29e;
     --line: #292524;
+    --field: #1c1917;
   }
 }
 
