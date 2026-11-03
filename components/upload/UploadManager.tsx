@@ -6,6 +6,7 @@ import { CloseIcon } from "@/components/icons";
 import { emitRefCreated } from "@/lib/events";
 import { ACCEPTED_TYPES, validateImageFile } from "@/lib/image";
 import { saveFromUrl, uploadRef, type UploadTarget } from "@/lib/refs";
+import { SUPABASE_URL } from "@/lib/supabase/config";
 
 type Status = "waiting" | "uploading" | "done" | "error";
 type Job = {
@@ -34,7 +35,16 @@ function isTyping(target: EventTarget | null) {
 export function looksLikeUrl(text: string) {
   const t = text.trim();
   if (!t || /\s/.test(t) || t.length > 2000) return false;
-  return /^https?:\/\/[^\s]+\.[^\s]+/i.test(t);
+  if (!/^https?:\/\/[^\s]+\.[^\s]+/i.test(t)) return false;
+  // 이미 FORME에 저장된 이미지의 주소면 다시 저장하지 않음
+  try {
+    const host = new URL(t).host;
+    if (host === new URL(SUPABASE_URL).host) return false;
+    if (typeof window !== "undefined" && host === window.location.host) return false;
+  } catch {
+    return false;
+  }
+  return true;
 }
 
 const Ctx = createContext<UploadCtx | null>(null);

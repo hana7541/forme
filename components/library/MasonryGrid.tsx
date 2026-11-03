@@ -120,6 +120,7 @@ function RefTile({
             alt={item.title || ""}
             loading="lazy"
             decoding="async"
+            draggable={false}
             onLoad={() => setLoaded(true)}
             className={`h-full w-full object-cover transition-opacity duration-500 ${loaded ? "opacity-100" : "opacity-0"}`}
           />

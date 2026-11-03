@@ -374,6 +374,7 @@ export function RefDetail({
               alt={item.title || ""}
               width={item.width ?? undefined}
               height={item.height ?? undefined}
+              draggable={false}
               onLoad={() => setFullLoaded(true)}
               style={{ backgroundColor: item.dominant_color ?? "var(--color-haze)" }}
               className={`h-auto max-h-[62vh] w-auto max-w-full rounded-[3px] object-contain transition-opacity duration-300 lg:max-h-full ${
