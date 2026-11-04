@@ -142,3 +142,9 @@ export const ChevronDownIcon = (p: IconProps) => (
     <path d="M5.5 8 10 12.5 14.5 8" />
   </Svg>
 );
+
+export const DownloadIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M10 3.5V13M6.5 9.5 10 13l3.5-3.5M4 13.5v2A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5v-2" />
+  </Svg>
+);

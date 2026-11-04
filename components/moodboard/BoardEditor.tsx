@@ -8,7 +8,9 @@ import { useShell } from "@/components/shell/AppShell";
 import { useT } from "@/lib/i18n";
 import { Dialog } from "@/components/Dialog";
 import { Button } from "@/components/ui";
-import { ChevronLeftIcon, PlusIcon, TrashIcon } from "@/components/icons";
+import { ChevronLeftIcon, DownloadIcon, PlusIcon, TrashIcon } from "@/components/icons";
+import { MenuItem, Popover } from "@/components/Popover";
+import { exportBoardPdf, exportBoardPng, type ExportProgress } from "@/lib/boardExport";
 import { RefPicker } from "@/components/library/RefPicker";
 import { onRefCreated } from "@/lib/events";
 import {
@@ -59,6 +61,7 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
   const [picking, setPicking] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [exporting, setExporting] = useState<{ kind: "png" | "pdf"; progress: ExportProgress | null } | null>(null);
   const savedName = useRef(initial.name);
 
   const viewport = useRef<HTMLDivElement>(null);
@@ -368,6 +371,26 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
     }
   }
 
+  // 내보내기: 지금 보이는 배치를 그대로 PNG 또는 PDF로
+  async function doExport(kind: "png" | "pdf") {
+    if (!items.length) {
+      show(t("보드가 비어 있어요. 이미지를 먼저 넣어 주세요."));
+      return;
+    }
+    await flush();
+    setSelectedId(null);
+    setExporting({ kind, progress: null });
+    try {
+      const run = kind === "png" ? exportBoardPng : exportBoardPdf;
+      await run(name, itemsRef.current, background, (progress) => setExporting({ kind, progress }));
+      show(kind === "png" ? t("이미지로 내려받았어요") : t("PDF로 내려받았어요"));
+    } catch (e) {
+      show(e instanceof Error && e.message ? t(e.message) : t("내보내지 못했어요. 잠시 후 다시 시도해 주세요."));
+    } finally {
+      setExporting(null);
+    }
+  }
+
   async function doDelete() {
     try {
       await deleteMoodboard(initial.id);
@@ -425,6 +448,56 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
               />
             ))}
           </div>
+          <Popover
+            label={t("내보내기")}
+            align="end"
+            width="w-64"
+            trigger={({ toggle, open }) => (
+              <button
+                type="button"
+                onClick={toggle}
+                disabled={!!exporting}
+                aria-expanded={open}
+                className={`inline-flex h-10 items-center gap-2 rounded-full border border-hairline px-4 text-[13px] font-medium transition-colors hover:border-ink disabled:opacity-60 ${open ? "border-ink" : ""}`}
+              >
+                {exporting ? (
+                  <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-hairline border-t-ink" aria-hidden="true" />
+                ) : (
+                  <DownloadIcon size={15} />
+                )}
+                <span className="hidden sm:inline">
+                  {exporting
+                    ? exporting.progress && exporting.progress.done < exporting.progress.total
+                      ? t("이미지 받는 중 {done}/{total}", { done: exporting.progress.done, total: exporting.progress.total })
+                      : t("만드는 중…")
+                    : t("내보내기")}
+                </span>
+              </button>
+            )}
+          >
+            {(close) => (
+              <>
+                <MenuItem
+                  onClick={() => {
+                    close();
+                    void doExport("png");
+                  }}
+                >
+                  <span className="block">{t("이미지 (PNG)")}</span>
+                  <span className="block whitespace-normal text-[12px] font-normal leading-snug text-graphite">{t("보드 그대로 한 장, 화면의 2배 선명도")}</span>
+                </MenuItem>
+                <MenuItem
+                  onClick={() => {
+                    close();
+                    void doExport("pdf");
+                  }}
+                >
+                  <span className="block">{t("PDF")}</span>
+                  <span className="block whitespace-normal text-[12px] font-normal leading-snug text-graphite">{t("보드 크기에 맞춘 한 페이지")}</span>
+                </MenuItem>
+              </>
+            )}
+          </Popover>
           <button type="button" onClick={() => setPicking(true)} className="inline-flex h-10 items-center gap-2 rounded-full bg-ink px-4 text-[13px] font-medium text-paper hover:opacity-85">
             <PlusIcon size={15} />
             {t("이미지 추가")}
