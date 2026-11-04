@@ -345,7 +345,7 @@ function UploadPanel({
       <ul className="max-h-64 overflow-y-auto py-1.5">
         {jobs.map((j) => (
           <li key={j.key} className="flex items-center gap-3 px-4 py-2">
-            <div className="h-9 w-9 shrink-0 overflow-hidden rounded-[6px] bg-haze">
+            <div className="h-9 w-9 shrink-0 overflow-hidden bg-haze">
               {j.preview && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={j.preview} alt="" className="h-full w-full object-cover" />

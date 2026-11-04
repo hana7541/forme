@@ -378,13 +378,13 @@ export function RefDetail({
               draggable={false}
               onLoad={() => setFullLoaded(true)}
               style={{ backgroundColor: item.dominant_color ?? "var(--color-haze)" }}
-              className={`h-auto max-h-[62vh] w-auto max-w-full rounded-[10px] object-contain transition-opacity duration-300 lg:max-h-full ${
+              className={`h-auto max-h-[62vh] w-auto max-w-full object-contain transition-opacity duration-300 lg:max-h-full ${
                 fullLoaded ? "opacity-100" : "opacity-60"
               }`}
             />
           ) : (
             <div
-              className="max-h-[62vh] w-full max-w-md rounded-[10px] lg:max-h-full"
+              className="max-h-[62vh] w-full max-w-md lg:max-h-full"
               style={{ aspectRatio: ratio ?? "1 / 1", backgroundColor: item.dominant_color ?? "var(--color-haze)" }}
             />
           )}

@@ -16,7 +16,7 @@ import { gridPath, signedUrls } from "@/lib/refs";
 function BoardPreview({ board, urls }: { board: MoodboardWithItems; urls: Record<string, string> }) {
   const items = [...board.moodboard_items].sort((a, b) => a.z_index - b.z_index);
   if (!items.length) {
-    return <div className="aspect-[4/3] rounded-[10px] border border-hairline" style={{ backgroundColor: board.background }} />;
+    return <div className="aspect-[4/3] border border-hairline" style={{ backgroundColor: board.background }} />;
   }
   const minX = Math.min(...items.map((i) => i.x));
   const minY = Math.min(...items.map((i) => i.y));
@@ -31,7 +31,7 @@ function BoardPreview({ board, urls }: { board: MoodboardWithItems; urls: Record
   const scaleH = contentRatio > frame ? frame / contentRatio : 1;
 
   return (
-    <div className="relative aspect-[4/3] overflow-hidden rounded-[10px] border border-hairline" style={{ backgroundColor: board.background }}>
+    <div className="relative aspect-[4/3] overflow-hidden border border-hairline" style={{ backgroundColor: board.background }}>
       <div
         className="absolute"
         style={{
@@ -238,7 +238,7 @@ function MoodboardsScreen() {
       {shown === null && (
         <div className="grid grid-cols-1 gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} className="aspect-[4/3] rounded-[10px] bg-haze" />
+            <div key={i} className="aspect-[4/3] bg-haze" />
           ))}
         </div>
       )}
