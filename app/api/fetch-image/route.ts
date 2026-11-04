@@ -29,11 +29,14 @@ const IMAGE_TYPES: Record<string, string> = {
   "image/avif": "avif",
 };
 
+// message는 한국어 원문(번역 열쇠), vars는 {이름} 자리에 들어갈 값
 class UserError extends Error {
   status: number;
-  constructor(message: string, status = 422) {
+  vars?: Record<string, string | number>;
+  constructor(message: string, status = 422, vars?: Record<string, string | number>) {
     super(message);
     this.status = status;
+    this.vars = vars;
   }
 }
 
@@ -121,7 +124,7 @@ async function safeFetch(start: string, accept: string): Promise<{ res: Response
       current = await assertPublicUrl(new URL(loc, current).toString());
       continue;
     }
-    if (!res.ok) throw new UserError(`상대 사이트가 거절했어요 (코드 ${res.status}).`, 502);
+    if (!res.ok) throw new UserError("상대 사이트가 거절했어요 (코드 {status}).", 502, { status: res.status });
     return { res, finalUrl: current };
   }
   throw new UserError("다른 주소로 너무 많이 넘어가요.", 502);
@@ -223,7 +226,7 @@ async function uploadAsUser(token: string, path: string, bytes: Uint8Array, mime
   });
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
-    throw new UserError(`저장소에 넣지 못했어요. ${detail.slice(0, 120)}`, 502);
+    throw new UserError("저장소에 넣지 못했어요. {detail}", 502, { detail: detail.slice(0, 120) });
   }
 }
 
@@ -280,7 +283,7 @@ export async function POST(req: Request) {
 
     return json({ id, path, mime: normalizedMime, size: bytes.byteLength, title, sourceUrl });
   } catch (e) {
-    if (e instanceof UserError) return json({ error: e.message }, e.status);
+    if (e instanceof UserError) return json({ error: e.message, vars: e.vars }, e.status);
     return json({ error: "알 수 없는 문제로 저장하지 못했어요." }, 500);
   }
 }

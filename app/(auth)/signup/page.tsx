@@ -12,6 +12,7 @@ import {
   validateUsername,
 } from "@/lib/auth";
 import { Button, Field, FormAlert } from "@/components/ui";
+import { useT } from "@/lib/i18n";
 
 type Errors = {
   displayName?: string | null;
@@ -22,6 +23,7 @@ type Errors = {
 
 export default function SignupPage() {
   const router = useRouter();
+  const { t } = useT();
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -33,10 +35,10 @@ export default function SignupPage() {
   function validate(): Errors {
     const name = displayName.trim();
     return {
-      displayName: !name ? "표시 이름을 입력해 주세요." : name.length > 40 ? "40자 이하로 입력해 주세요." : null,
+      displayName: !name ? t("표시 이름을 입력해 주세요.") : name.length > 40 ? t("40자 이하로 입력해 주세요.") : null,
       username: validateUsername(username),
       password: validatePassword(password),
-      confirm: confirm !== password ? "비밀번호가 서로 달라요." : null,
+      confirm: confirm !== password ? t("비밀번호가 서로 달라요.") : null,
     };
   }
 
@@ -67,7 +69,7 @@ export default function SignupPage() {
     }
     if (!data.session) {
       // 'Confirm email'이 켜져 있으면 세션 없이 돌아옴
-      setFormError("가입은 됐지만 로그인이 안 됐어요. Supabase의 'Confirm email'이 꺼져 있는지 확인해 주세요.");
+      setFormError(t("가입은 됐지만 로그인이 안 됐어요. Supabase의 'Confirm email'이 꺼져 있는지 확인해 주세요."));
       return;
     }
     router.replace("/");
@@ -75,16 +77,16 @@ export default function SignupPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold tracking-tight">계정 만들기</h1>
-      <p className="mt-1 text-sm text-[var(--muted)]">이메일 없이 Username으로 가입해요.</p>
+      <h1 className="text-xl font-semibold tracking-tight">{t("계정 만들기")}</h1>
+      <p className="mt-1 text-sm text-[var(--muted)]">{t("이메일 없이 Username으로 가입해요.")}</p>
 
       <form onSubmit={onSubmit} noValidate className="mt-8 flex flex-col gap-5">
         <Field
-          label="표시 이름"
+          label={t("표시 이름")}
           name="displayName"
           autoComplete="nickname"
-          placeholder="하나"
-          hint="화면에 보이는 이름이에요. 나중에 바꿀 수 있어요."
+          placeholder={t("하나")}
+          hint={t("화면에 보이는 이름이에요. 나중에 바꿀 수 있어요.")}
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
           error={errors.displayName}
@@ -96,23 +98,23 @@ export default function SignupPage() {
           autoCapitalize="none"
           spellCheck={false}
           placeholder="hana_design"
-          hint="로그인할 때 쓰는 아이디예요. 영문 소문자·숫자·_ 3~20자"
+          hint={t("로그인할 때 쓰는 아이디예요. 영문 소문자·숫자·_ 3~20자")}
           value={username}
           onChange={(e) => setUsername(e.target.value.toLowerCase())}
           error={errors.username}
         />
         <Field
-          label="비밀번호"
+          label={t("비밀번호")}
           name="password"
           type="password"
           autoComplete="new-password"
-          hint="6자 이상"
+          hint={t("6자 이상")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           error={errors.password}
         />
         <Field
-          label="비밀번호 확인"
+          label={t("비밀번호 확인")}
           name="confirm"
           type="password"
           autoComplete="new-password"
@@ -124,14 +126,14 @@ export default function SignupPage() {
         <FormAlert message={formError} />
 
         <Button type="submit" loading={submitting} className="mt-1 w-full">
-          가입하고 시작하기
+          {t("가입하고 시작하기")}
         </Button>
       </form>
 
       <p className="mt-8 text-center text-sm text-[var(--muted)]">
-        이미 계정이 있나요?{" "}
+        {t("이미 계정이 있나요?")}{" "}
         <Link href="/login" className="font-medium text-[var(--ink)] underline underline-offset-4">
-          로그인
+          {t("로그인")}
         </Link>
       </p>
     </div>

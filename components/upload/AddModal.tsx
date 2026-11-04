@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Dialog } from "@/components/Dialog";
 import { UploadIcon } from "@/components/icons";
 import { looksLikeUrl, useUpload } from "./UploadManager";
+import { useT } from "@/lib/i18n";
 
 type Props = {
   open: boolean;
@@ -15,6 +16,7 @@ type Props = {
 // Add New: 끌어다 놓기 · 파일 고르기 · 주소로 저장을 한 곳에
 export function AddModal({ open, onClose, destination }: Props) {
   const { openPicker, saveUrls } = useUpload();
+  const { t } = useT();
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [over, setOver] = useState(false);
@@ -33,7 +35,7 @@ export function AddModal({ open, onClose, destination }: Props) {
     const v = url.trim();
     const withScheme = /^https?:\/\//i.test(v) ? v : `https://${v}`;
     if (!v || !looksLikeUrl(withScheme)) {
-      setError("이미지나 웹페이지 주소를 넣어 주세요.");
+      setError(t("이미지나 웹페이지 주소를 넣어 주세요."));
       return;
     }
     saveUrls([withScheme]);
@@ -41,7 +43,7 @@ export function AddModal({ open, onClose, destination }: Props) {
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title="레퍼런스 추가" width="max-w-[520px]">
+    <Dialog open={open} onClose={onClose} title={t("레퍼런스 추가")} width="max-w-[520px]">
       {destination && <p className="-mt-3 mb-5 text-[13px] text-graphite">{destination}</p>}
 
       {/* 파일은 화면 어디에 놓아도 올라가므로, 여기서는 보이는 안내와 닫기만 담당 */}
@@ -68,13 +70,13 @@ export function AddModal({ open, onClose, destination }: Props) {
         <span className="grid h-11 w-11 place-items-center rounded-full bg-haze text-ink">
           <UploadIcon />
         </span>
-        <span className="text-[15px] font-medium">이미지를 끌어다 놓거나 눌러서 고르세요</span>
-        <span className="text-[13px] text-graphite">PNG, JPG, WEBP, GIF, AVIF, 여러 장 가능, 한 장에 20MB까지</span>
+        <span className="text-[15px] font-medium">{t("이미지를 끌어다 놓거나 눌러서 고르세요")}</span>
+        <span className="text-[13px] text-graphite">{t("PNG, JPG, WEBP, GIF, AVIF, 여러 장 가능, 한 장에 20MB까지")}</span>
       </button>
 
       <div className="my-6 flex items-center gap-3 text-[12px] text-graphite">
         <span className="h-px flex-1 bg-hairline" />
-        또는 주소로 저장
+        {t("또는 주소로 저장")}
         <span className="h-px flex-1 bg-hairline" />
       </div>
 
@@ -88,28 +90,28 @@ export function AddModal({ open, onClose, destination }: Props) {
               setUrl(e.target.value);
               setError(null);
             }}
-            placeholder="이미지 또는 웹페이지 주소"
-            aria-label="이미지 또는 웹페이지 주소"
+            placeholder={t("이미지 또는 웹페이지 주소")}
+            aria-label={t("이미지 또는 웹페이지 주소")}
             aria-invalid={!!error}
             className={`h-11 min-w-0 flex-1 rounded-[8px] border px-3.5 text-[14px] outline-none placeholder:text-graphite focus:border-ink ${
               error ? "border-red-500" : "border-hairline"
             }`}
           />
           <button type="submit" className="h-11 shrink-0 rounded-full bg-ink px-5 text-[14px] font-medium text-paper hover:opacity-85">
-            저장
+            {t("저장")}
           </button>
         </div>
         {error ? (
           <p className="mt-2 text-[12px] text-red-600">{error}</p>
         ) : (
           <p className="mt-2 text-[12px] leading-relaxed text-graphite">
-            웹페이지 주소를 넣으면 대표 이미지를 찾아 저장하고, 출처도 함께 적어 둬요.
+            {t("웹페이지 주소를 넣으면 대표 이미지를 찾아 저장하고, 출처도 함께 적어 둬요.")}
           </p>
         )}
       </form>
 
       <p className="mt-6 border-t border-hairline pt-4 text-[12px] text-graphite">
-        이 창을 열지 않아도 화면 어디서나 Cmd + V로 이미지나 주소를 붙여넣을 수 있어요.
+        {t("이 창을 열지 않아도 화면 어디서나 Cmd + V로 이미지나 주소를 붙여넣을 수 있어요.")}
       </p>
     </Dialog>
   );

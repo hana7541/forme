@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { BoardIcon, CloseIcon, FolderIcon, GridIcon, HeartIcon } from "@/components/icons";
 import { useShell } from "./AppShell";
+import { useT } from "@/lib/i18n";
 
 type NavItemProps = {
   href: string;
@@ -37,6 +38,7 @@ function GroupLabel({ children }: { children: React.ReactNode }) {
 
 export function Sidebar({ onClose }: { onClose?: () => void }) {
   const { counts } = useShell();
+  const { t, cat } = useT();
   const pathname = usePathname();
   const params = useSearchParams();
 
@@ -48,14 +50,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const isAll = onHome && view !== "favorites" && !category && !tag && !q;
 
   return (
-    <nav aria-label="라이브러리 메뉴" className="flex h-full flex-col overflow-y-auto px-4 pb-6 pt-8">
+    <nav aria-label={t("라이브러리 메뉴")} className="flex h-full flex-col overflow-y-auto px-4 pb-6 pt-8">
       {onClose && (
         <div className="mb-6 flex items-center justify-between px-3">
           <span className="text-[19px] font-bold tracking-[-0.05em]">FORME.</span>
           <button
             type="button"
             onClick={onClose}
-            aria-label="메뉴 닫기"
+            aria-label={t("메뉴 닫기")}
             className="-mr-2 grid h-9 w-9 place-items-center rounded-full text-graphite hover:bg-haze hover:text-ink"
           >
             <CloseIcon />
@@ -63,27 +65,27 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         </div>
       )}
 
-      <GroupLabel>Library</GroupLabel>
+      <GroupLabel>{t("라이브러리@group")}</GroupLabel>
       <div className="flex flex-col gap-0.5">
-        <NavItem href="/" active={isAll} label="All References" count={counts?.total} icon={<GridIcon size={17} />} />
+        <NavItem href="/" active={isAll} label={t("전체@nav")} count={counts?.total} icon={<GridIcon size={17} />} />
         <NavItem
           href="/?view=favorites"
           active={onHome && view === "favorites"}
-          label="Favorites"
+          label={t("즐겨찾기")}
           count={counts?.favorites}
           icon={<HeartIcon size={17} />}
         />
         <NavItem
           href="/collections"
           active={pathname.startsWith("/collections")}
-          label="Collections"
+          label={t("컬렉션@nav")}
           count={counts?.collections.length}
           icon={<FolderIcon size={17} />}
         />
         <NavItem
           href="/moodboards"
           active={pathname.startsWith("/moodboards")}
-          label="Moodboards"
+          label={t("무드보드@nav")}
           count={counts?.moodboards}
           icon={<BoardIcon size={17} />}
         />
@@ -91,7 +93,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
       <div className="mx-3 my-7 h-px bg-hairline" />
 
-      <GroupLabel>Categories</GroupLabel>
+      <GroupLabel>{t("카테고리@group")}</GroupLabel>
       <div className="flex flex-col gap-0.5">
         {counts === null &&
           Array.from({ length: 5 }, (_, i) => <div key={i} className="mx-3 my-3 h-3 w-24 rounded bg-haze" />)}
@@ -100,7 +102,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             key={c.id}
             href={`/?category=${c.id}`}
             active={onHome && category === c.id}
-            label={c.name}
+            label={cat(c.name)}
             count={c.count}
           />
         ))}

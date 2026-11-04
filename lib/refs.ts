@@ -1,6 +1,7 @@
 // 레퍼런스(이미지 1장)를 창고에서 꺼내고, 넣고, 고치고, 지우는 도구 모음
 import { getSupabase } from "@/lib/supabase/client";
 import { fileExtension, prepareImage } from "@/lib/image";
+import { tr } from "@/lib/i18n";
 
 export const BUCKET = "refs";
 export const PAGE_SIZE = 40;
@@ -237,7 +238,7 @@ export async function saveFromUrl(url: string, opts: { userId: string; target: U
   const supabase = getSupabase();
   const { data: sess } = await supabase.auth.getSession();
   const token = sess.session?.access_token;
-  if (!token) throw new Error("다시 로그인해 주세요.");
+  if (!token) throw new Error(tr("다시 로그인해 주세요."));
 
   const res = await fetch("/api/fetch-image", {
     method: "POST",
@@ -246,6 +247,7 @@ export async function saveFromUrl(url: string, opts: { userId: string; target: U
   });
   const body = (await res.json().catch(() => ({}))) as {
     error?: string;
+    vars?: Record<string, string | number>;
     id?: string;
     path?: string;
     mime?: string;
@@ -253,12 +255,12 @@ export async function saveFromUrl(url: string, opts: { userId: string; target: U
     title?: string;
     sourceUrl?: string;
   };
-  if (!res.ok || !body.id || !body.path || !body.mime) throw new Error(body.error ?? "저장하지 못했어요.");
+  if (!res.ok || !body.id || !body.path || !body.mime) throw new Error(body.error ? tr(body.error, body.vars) : tr("저장하지 못했어요."));
 
   // 방금 저장된 원본을 다시 받아서 썸네일·대표색을 만듦
   const signed = await signedUrls([body.path]);
   const blob = await fetch(signed[body.path]).then((r) => {
-    if (!r.ok) throw new Error("저장한 이미지를 읽지 못했어요.");
+    if (!r.ok) throw new Error(tr("저장한 이미지를 읽지 못했어요."));
     return r.blob();
   });
   const file = new File([blob], body.path.split("/").pop() ?? "image", { type: body.mime });
@@ -346,7 +348,7 @@ export function normalizeTagName(raw: string) {
 
 export async function findOrCreateTag(rawName: string): Promise<Tag> {
   const name = normalizeTagName(rawName);
-  if (!name) throw new Error("태그 이름이 비어 있어요.");
+  if (!name) throw new Error(tr("태그 이름이 비어 있어요."));
   const supabase = getSupabase();
   const existing = await supabase.from("tags").select("id, name").eq("name", name).maybeSingle();
   if (existing.error) throw existing.error;

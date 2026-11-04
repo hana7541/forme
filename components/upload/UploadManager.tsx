@@ -7,6 +7,7 @@ import { emitRefCreated } from "@/lib/events";
 import { ACCEPTED_TYPES, validateImageFile } from "@/lib/image";
 import { saveFromUrl, uploadRef, type UploadTarget } from "@/lib/refs";
 import { SUPABASE_URL } from "@/lib/supabase/config";
+import { tr, useT } from "@/lib/i18n";
 
 type Status = "waiting" | "uploading" | "done" | "error";
 type Job = {
@@ -59,11 +60,11 @@ const CONCURRENCY = 3;
 
 function friendlyError(e: unknown): string {
   const msg = e instanceof Error ? e.message : typeof e === "object" && e && "message" in e ? String((e as { message: unknown }).message) : "";
-  if (/exceeded|too large|payload/i.test(msg)) return "파일이 너무 커요 (최대 20MB).";
-  if (/mime|type/i.test(msg)) return "지원하지 않는 형식이에요.";
-  if (/network|fetch/i.test(msg)) return "인터넷 연결을 확인해 주세요.";
-  if (/decode|image/i.test(msg)) return "이미지를 읽을 수 없어요.";
-  return msg ? `올리지 못했어요: ${msg}` : "올리지 못했어요.";
+  if (/exceeded|too large|payload/i.test(msg)) return tr("파일이 너무 커요 (최대 20MB).");
+  if (/mime|type/i.test(msg)) return tr("지원하지 않는 형식이에요.");
+  if (/network|fetch/i.test(msg)) return tr("인터넷 연결을 확인해 주세요.");
+  if (/decode|image/i.test(msg)) return tr("이미지를 읽을 수 없어요.");
+  return msg ? tr("올리지 못했어요: {msg}", { msg: tr(msg) }) : tr("올리지 못했어요.");
 }
 
 export function UploadManager({
@@ -76,6 +77,7 @@ export function UploadManager({
   onUploaded: () => void;
 }) {
   const { session } = useAuth();
+  const { t } = useT();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -127,7 +129,7 @@ export function UploadManager({
         return {
           key: crypto.randomUUID(),
           file,
-          name: opts?.pasted ? "붙여넣은 이미지" : file.name,
+          name: opts?.pasted ? tr("붙여넣은 이미지") : file.name,
           preview: invalid ? "" : URL.createObjectURL(file),
           status: invalid ? "error" : "waiting",
           error: invalid ?? undefined,
@@ -244,8 +246,8 @@ export function UploadManager({
   const failed = jobs.filter((j) => j.status === "error").length;
   useEffect(() => {
     if (!jobs.length || active || failed) return;
-    const t = setTimeout(() => clearJobs(), 3500);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => clearJobs(), 3500);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobs.length, active, failed]);
 
@@ -279,13 +281,13 @@ export function UploadManager({
       >
         <div className="absolute inset-4 rounded-2xl border-[1.5px] border-dashed border-ink sm:inset-6" />
         <div className="relative px-6 text-center">
-          <p className="text-[32px] font-semibold tracking-[-0.04em] sm:text-[48px]">여기에 놓으세요</p>
+          <p className="text-[32px] font-semibold tracking-[-0.04em] sm:text-[48px]">{t("여기에 놓으세요")}</p>
           <p className="mt-3 text-[15px] text-graphite">
             {targetRef.current.collectionId
-              ? "지금 보고 있는 컬렉션에 바로 들어가요."
+              ? t("지금 보고 있는 컬렉션에 바로 들어가요.")
               : targetRef.current.categoryId
-                ? "지금 보고 있는 카테고리에 바로 들어가요."
-                : "라이브러리에 바로 올라가요."}
+                ? t("지금 보고 있는 카테고리에 바로 들어가요.")
+                : t("라이브러리에 바로 올라가요.")}
           </p>
         </div>
       </div>
@@ -309,12 +311,13 @@ function UploadPanel({
   failed: number;
   onClose: () => void;
 }) {
+  const { t } = useT();
   const done = jobs.filter((j) => j.status === "done").length;
   const heading = active
-    ? `올리는 중 ${done}/${jobs.length}`
+    ? t("올리는 중 {done}/{total}", { done, total: jobs.length })
     : failed
-      ? `${done}장 올림, ${failed}장 실패`
-      : `${done}장 모두 올렸어요`;
+      ? t("{done}장 올림, {failed}장 실패", { done, failed })
+      : t("{done}장 모두 올렸어요", { done });
 
   return (
     <div className="fixed bottom-4 right-4 z-[55] w-[calc(100vw-2rem)] max-w-[340px] overflow-hidden rounded-xl border border-hairline bg-paper sm:bottom-6 sm:right-6">
@@ -326,7 +329,7 @@ function UploadPanel({
           <button
             type="button"
             onClick={onClose}
-            aria-label="닫기"
+            aria-label={t("닫기")}
             className="grid h-8 w-8 place-items-center rounded-full text-graphite hover:bg-haze hover:text-ink"
           >
             <CloseIcon size={16} />
@@ -361,15 +364,16 @@ function UploadPanel({
 }
 
 function JobStatus({ status }: { status: Status }) {
+  const { t } = useT();
   if (status === "uploading")
-    return <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-hairline border-t-ink" aria-label="올리는 중" />;
+    return <span className="h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-hairline border-t-ink" aria-label={t("올리는 중")} />;
   if (status === "done")
     return (
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0" aria-label="완료">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" className="shrink-0" aria-label={t("완료")}>
         <path d="M3.5 8.5 6.5 11.5 12.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     );
   if (status === "error")
-    return <span className="shrink-0 text-[12px] text-red-600">실패</span>;
-  return <span className="shrink-0 text-[12px] text-graphite">대기</span>;
+    return <span className="shrink-0 text-[12px] text-red-600">{t("실패")}</span>;
+  return <span className="shrink-0 text-[12px] text-graphite">{t("대기")}</span>;
 }

@@ -3,13 +3,11 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 
 export type ThemeChoice = "light" | "dark" | "system";
-const KEY = "forme-theme";
+import { THEME_KEY as KEY } from "@/lib/boot-scripts";
 
 type ThemeCtx = { theme: ThemeChoice; setTheme: (t: ThemeChoice) => void };
 const Ctx = createContext<ThemeCtx | null>(null);
 
-// 화면이 그려지기 전에 테마를 정하는 짧은 스크립트 (깜빡임 방지)
-export const themeScript = `(function(){try{var t=localStorage.getItem('${KEY}')||'light';var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light'}catch(e){document.documentElement.dataset.theme='light'}})();`;
 
 function apply(choice: ThemeChoice) {
   const dark = choice === "dark" || (choice === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);

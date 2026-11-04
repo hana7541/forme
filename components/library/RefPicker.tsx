@@ -5,6 +5,7 @@ import { Dialog } from "@/components/Dialog";
 import { Button } from "@/components/ui";
 import { SearchIcon } from "@/components/icons";
 import { fetchRefs, gridPath, signedUrls, type Ref } from "@/lib/refs";
+import { useT } from "@/lib/i18n";
 
 type Props = {
   open: boolean;
@@ -17,7 +18,9 @@ type Props = {
 const PICK_PAGE = 60;
 
 // 라이브러리에서 여러 장 골라 오기 (무드보드에 넣을 때 등)
-export function RefPicker({ open, onClose, onPick, confirmLabel = (n) => `${n}개 넣기`, title = "라이브러리에서 고르기" }: Props) {
+export function RefPicker({ open, onClose, onPick, confirmLabel, title }: Props) {
+  const { t } = useT();
+  const label = confirmLabel ?? ((n: number) => t("{n}개 넣기", { n }));
   const [q, setQ] = useState("");
   const [term, setTerm] = useState("");
   const [items, setItems] = useState<Ref[]>([]);
@@ -29,8 +32,8 @@ export function RefPicker({ open, onClose, onPick, confirmLabel = (n) => `${n}�
 
   // 입력을 잠깐 멈추면 검색
   useEffect(() => {
-    const t = setTimeout(() => setTerm(q.trim()), 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setTerm(q.trim()), 300);
+    return () => clearTimeout(timer);
   }, [q]);
 
   const load = useCallback(async (offset: number) => {
@@ -70,15 +73,15 @@ export function RefPicker({ open, onClose, onPick, confirmLabel = (n) => `${n}�
   }
 
   return (
-    <Dialog open={open} onClose={onClose} title={title} width="max-w-[880px]">
+    <Dialog open={open} onClose={onClose} title={title ?? t("라이브러리에서 고르기")} width="max-w-[880px]">
       <div className="relative">
         <SearchIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-graphite" />
         <input
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="제목, 메모, 태그로 찾기"
-          aria-label="레퍼런스 검색"
+          placeholder={t("제목, 메모, 태그로 찾기")}
+          aria-label={t("레퍼런스 검색")}
           className="h-11 w-full rounded-full bg-haze pl-11 pr-4 text-[14px] outline-none placeholder:text-graphite focus:bg-paper focus:shadow-[inset_0_0_0_1px_var(--color-ink)]"
         />
       </div>
@@ -86,7 +89,7 @@ export function RefPicker({ open, onClose, onPick, confirmLabel = (n) => `${n}�
       <div className="mt-5 max-h-[52vh] overflow-y-auto">
         {!loading && items.length === 0 && (
           <p className="py-10 text-center text-[14px] text-graphite">
-            {term ? `‘${term}’와 맞는 레퍼런스가 없어요.` : "라이브러리가 비어 있어요. 먼저 이미지를 올려 주세요."}
+            {term ? t("‘{term}’와 맞는 레퍼런스가 없어요.", { term }) : t("라이브러리가 비어 있어요. 먼저 이미지를 올려 주세요.")}
           </p>
         )}
         <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5">
@@ -99,7 +102,7 @@ export function RefPicker({ open, onClose, onPick, confirmLabel = (n) => `${n}�
                   type="button"
                   onClick={() => toggle(r)}
                   aria-pressed={on}
-                  aria-label={r.title || "제목 없는 레퍼런스"}
+                  aria-label={r.title || t("제목 없는 레퍼런스")}
                   className={`relative block aspect-square w-full overflow-hidden rounded-[10px] transition-transform ${on ? "scale-[0.94]" : ""}`}
                   style={{ backgroundColor: r.dominant_color ?? "var(--color-haze)" }}
                 >
@@ -127,17 +130,17 @@ export function RefPicker({ open, onClose, onPick, confirmLabel = (n) => `${n}�
         {hasMore && (
           <div className="mt-4 flex justify-center">
             <Button type="button" variant="ghost" loading={loading} onClick={() => void load(items.length)}>
-              더 보기
+              {t("더 보기")}
             </Button>
           </div>
         )}
       </div>
 
       <div className="mt-6 flex items-center justify-between gap-3">
-        <p className="text-[13px] text-graphite tabular-nums">{picked.size ? `${picked.size}개 고름` : "넣을 이미지를 눌러 고르세요"}</p>
+        <p className="text-[13px] text-graphite tabular-nums">{picked.size ? t("{n}개 고름", { n: picked.size }) : t("넣을 이미지를 눌러 고르세요")}</p>
         <div className="flex gap-2">
           <Button type="button" variant="ghost" onClick={onClose}>
-            취소
+            {t("취소")}
           </Button>
           <Button
             type="button"
@@ -147,7 +150,7 @@ export function RefPicker({ open, onClose, onPick, confirmLabel = (n) => `${n}�
               onClose();
             }}
           >
-            {confirmLabel(picked.size)}
+            {label(picked.size)}
           </Button>
         </div>
       </div>

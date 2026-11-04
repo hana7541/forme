@@ -6,6 +6,7 @@ import { CloseIcon, FolderIcon, HeartIcon, TrashIcon } from "@/components/icons"
 import type { CategoryWithCount } from "@/lib/library";
 import type { CollectionPreview } from "@/lib/collections";
 import type { TagWithCount } from "@/lib/refs";
+import { useT } from "@/lib/i18n";
 
 type Props = {
   count: number;
@@ -32,6 +33,7 @@ const barBtn =
 
 // 여러 장을 고른 뒤 아래에 뜨는 검은 막대
 export function SelectionBar(p: Props) {
+  const { t, cat } = useT();
   const [confirming, setConfirming] = useState(false);
   const [tagText, setTagText] = useState("");
   const none = p.count === 0;
@@ -48,18 +50,18 @@ export function SelectionBar(p: Props) {
     <div className="fixed inset-x-0 bottom-4 z-[45] flex justify-center px-3 sm:bottom-6">
       <div
         role="toolbar"
-        aria-label="선택한 레퍼런스 작업"
+        aria-label={t("선택한 레퍼런스 작업")}
         className="flex max-w-full flex-wrap items-center justify-center gap-1 rounded-[22px] bg-ink px-1.5 py-1.5 text-paper sm:flex-nowrap sm:pl-4"
       >
         <p className="mr-1 shrink-0 px-2 text-[13px] tabular-nums sm:mr-2 sm:px-0" aria-live="polite">
-          {p.count}개 선택
+          {t("{n}개 선택", { n: p.count })}
         </p>
 
         {confirming ? (
           <>
-            <span className="shrink-0 px-2 text-[13px] text-paper/80">이미지와 메모가 함께 지워져요.</span>
+            <span className="shrink-0 px-2 text-[13px] text-paper/80">{t("이미지와 메모가 함께 지워져요.")}</span>
             <button type="button" className={barBtn} onClick={() => setConfirming(false)}>
-              취소
+              {t("취소")}
             </button>
             <button
               type="button"
@@ -70,22 +72,22 @@ export function SelectionBar(p: Props) {
               }}
               className="inline-flex h-9 shrink-0 items-center rounded-full bg-red-600 px-4 text-[13px] font-medium text-white disabled:opacity-50"
             >
-              {p.count}개 삭제
+              {t("{n}개 삭제", { n: p.count })}
             </button>
           </>
         ) : (
           <>
             <button type="button" className={barBtn} disabled={none || p.busy} onClick={() => p.onFavorite(!p.allFavorite)}>
               <HeartIcon size={15} className={p.allFavorite && !none ? "fill-current" : ""} />
-              {p.allFavorite && !none ? "즐겨찾기 빼기" : "즐겨찾기"}
+              {p.allFavorite && !none ? t("즐겨찾기 빼기") : t("즐겨찾기@action")}
             </button>
 
             <Popover
               side="top"
-              label="카테고리 바꾸기"
+              label={t("카테고리 바꾸기")}
               trigger={({ toggle }) => (
                 <button type="button" className={barBtn} disabled={none || p.busy} onClick={toggle}>
-                  카테고리
+                  {t("카테고리")}
                 </button>
               )}
             >
@@ -99,7 +101,7 @@ export function SelectionBar(p: Props) {
                         close();
                       }}
                     >
-                      {c.name}
+                      {cat(c.name)}
                     </MenuItem>
                   ))}
                   <div className="my-1 h-px bg-hairline" />
@@ -109,7 +111,7 @@ export function SelectionBar(p: Props) {
                       close();
                     }}
                   >
-                    카테고리 없음
+                    {t("카테고리 없음")}
                   </MenuItem>
                 </div>
               )}
@@ -117,11 +119,11 @@ export function SelectionBar(p: Props) {
 
             <Popover
               side="top"
-              label="태그 붙이기"
+              label={t("태그 붙이기")}
               width="w-72"
               trigger={({ toggle }) => (
                 <button type="button" className={barBtn} disabled={none || p.busy} onClick={toggle}>
-                  태그
+                  {t("태그")}
                 </button>
               )}
             >
@@ -132,31 +134,31 @@ export function SelectionBar(p: Props) {
                       autoFocus
                       value={tagText}
                       onChange={(e) => setTagText(e.target.value)}
-                      placeholder="붙일 태그 이름"
-                      aria-label="붙일 태그 이름"
+                      placeholder={t("붙일 태그 이름")}
+                      aria-label={t("붙일 태그 이름")}
                       className="h-9 min-w-0 flex-1 rounded-lg border border-hairline px-3 text-[14px] outline-none focus:border-ink"
                     />
                     <button type="submit" className="h-9 rounded-full bg-ink px-3.5 text-[13px] text-paper">
-                      붙이기
+                      {t("붙이기")}
                     </button>
                   </form>
                   {p.tags.length > 0 && (
                     <div className="mt-2 flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
                       {p.tags
-                        .filter((t) => !tagText.trim() || t.name.toLowerCase().includes(tagText.trim().toLowerCase()))
+                        .filter((tg) => !tagText.trim() || tg.name.toLowerCase().includes(tagText.trim().toLowerCase()))
                         .slice(0, 20)
-                        .map((t) => (
+                        .map((tg) => (
                           <button
-                            key={t.id}
+                            key={tg.id}
                             type="button"
                             onClick={() => {
-                              p.onTag(t.name);
+                              p.onTag(tg.name);
                               setTagText("");
                               close();
                             }}
                             className="h-7 rounded-full border border-hairline px-2.5 text-[12px] hover:border-ink"
                           >
-                            {t.name}
+                            {tg.name}
                           </button>
                         ))}
                     </div>
@@ -167,11 +169,11 @@ export function SelectionBar(p: Props) {
 
             <Popover
               side="top"
-              label="컬렉션에 넣기"
+              label={t("컬렉션에 넣기")}
               trigger={({ toggle }) => (
                 <button type="button" className={barBtn} disabled={none || p.busy} onClick={toggle}>
                   <FolderIcon size={15} />
-                  컬렉션에 넣기
+                  {t("컬렉션에 넣기")}
                 </button>
               )}
             >
@@ -197,7 +199,7 @@ export function SelectionBar(p: Props) {
                       close();
                     }}
                   >
-                    + 새 컬렉션 만들어 넣기
+                    {t("+ 새 컬렉션 만들어 넣기")}
                   </MenuItem>
                 </div>
               )}
@@ -205,23 +207,23 @@ export function SelectionBar(p: Props) {
 
             {p.inCollectionId && (
               <button type="button" className={barBtn} disabled={none || p.busy} onClick={p.onRemoveFromCollection}>
-                컬렉션에서 빼기
+                {t("컬렉션에서 빼기")}
               </button>
             )}
 
             <button type="button" className={barBtn} disabled={none || p.busy} onClick={() => setConfirming(true)}>
               <TrashIcon size={15} />
-              삭제
+              {t("삭제")}
             </button>
 
             <span className="mx-1 h-5 w-px shrink-0 bg-paper/20" aria-hidden="true" />
 
             {p.count < p.total && (
               <button type="button" className={barBtn} onClick={p.onSelectAll}>
-                모두 선택
+                {t("모두 선택")}
               </button>
             )}
-            <button type="button" onClick={p.onCancel} aria-label="선택 끝내기" className={`${barBtn} w-9 justify-center px-0`}>
+            <button type="button" onClick={p.onCancel} aria-label={t("선택 끝내기")} className={`${barBtn} w-9 justify-center px-0`}>
               <CloseIcon size={15} />
             </button>
           </>

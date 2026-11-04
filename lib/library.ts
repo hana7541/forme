@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
 import { fetchCollections, type CollectionPreview } from "@/lib/collections";
 import { fetchTagCounts, type TagWithCount } from "@/lib/refs";
+import { tr } from "@/lib/i18n";
 
 export type CategoryWithCount = { id: string; name: string; sort_order: number; count: number };
 
@@ -55,7 +56,7 @@ export function useLibraryCounts() {
       setError(null);
     } catch (e) {
       const msg = typeof e === "object" && e && "message" in e ? String((e as { message: unknown }).message) : "";
-      setError(msg || "불러오지 못했어요.");
+      setError(msg || tr("불러오지 못했어요."));
     }
   }, []);
 

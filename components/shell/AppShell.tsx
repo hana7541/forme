@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { CollectionDialog } from "@/components/collections/CollectionDialog";
 import { useToast } from "@/components/Toast";
+import { useT } from "@/lib/i18n";
 import { useLibraryCounts, type LibraryCounts } from "@/lib/library";
 import { UploadManager } from "@/components/upload/UploadManager";
 import { Sidebar } from "./Sidebar";
@@ -58,6 +59,7 @@ function ShellFrame({
   const [addOpen, setAddOpen] = useState(false);
   const openUpload = useCallback(() => setAddOpen(true), []);
   const { show } = useToast();
+  const { t, cat } = useT();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [newCollection, setNewCollection] = useState<{
@@ -77,11 +79,11 @@ function ShellFrame({
   const homeCategory = pathname === "/" ? params.get("category") : null;
   const collectionMatch = pathname.match(/^\/collections\/([0-9a-f-]{36})/)?.[1] ?? null;
   const destination = collectionMatch
-    ? `‘${data?.collections.find((c) => c.id === collectionMatch)?.name ?? "이"}’ 컬렉션에 바로 들어가요.`
+    ? t("‘{name}’ 컬렉션에 바로 들어가요.", { name: data?.collections.find((c) => c.id === collectionMatch)?.name ?? "" })
     : homeCategory
-      ? `‘${data?.categories.find((c) => c.id === homeCategory)?.name ?? "이"}’ 카테고리로 바로 들어가요.`
+      ? t("‘{name}’ 카테고리로 바로 들어가요.", { name: cat(data?.categories.find((c) => c.id === homeCategory)?.name ?? "") })
       : pathname.startsWith("/moodboards/")
-        ? "라이브러리에 저장되고, 지금 보고 있는 무드보드에도 놓여요."
+        ? t("라이브러리에 저장되고, 지금 보고 있는 무드보드에도 놓여요.")
         : null;
 
   // 메뉴에서 다른 곳으로 이동하면 서랍 닫기
@@ -121,7 +123,7 @@ function ShellFrame({
             aria-hidden="true"
           />
           <aside
-            aria-label="메뉴"
+            aria-label={t("메뉴")}
             aria-hidden={!drawerOpen}
             className={`drawer-panel absolute inset-y-0 left-0 w-[280px] max-w-[85vw] bg-paper ${
               drawerOpen ? "translate-x-0" : "-translate-x-full"
@@ -145,7 +147,7 @@ function ShellFrame({
           const req = newCollection;
           void reload();
           req?.onCreated?.(c.id);
-          if (req?.stay) show(`‘${c.name}’ 컬렉션에 넣었어요`);
+          if (req?.stay) show(t("‘{name}’ 컬렉션에 넣었어요", { name: c.name }));
           else router.push(`/collections/${c.id}`);
         }}
       />

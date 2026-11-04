@@ -3,11 +3,13 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
+import { useT } from "@/lib/i18n";
 
 // 로그인·가입 화면 공통 틀. 이미 로그인한 사람은 홈으로 보냄
 // PC: 왼쪽에 큰 워드마크, 오른쪽에 입력 폼 / 모바일: 위아래로 쌓임
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
+  const { t, lang, setLang } = useT();
   const router = useRouter();
 
   useEffect(() => {
@@ -17,12 +19,28 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <main className="min-h-screen lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
       <section className="flex flex-col justify-between border-hairline px-6 pb-10 pt-8 sm:px-10 lg:border-r lg:px-14 lg:pb-14 lg:pt-12">
-        <p className="text-[13px] text-graphite">디자이너를 위한 개인 레퍼런스 아카이브</p>
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-[13px] text-graphite">{t("디자이너를 위한 개인 레퍼런스 아카이브")}</p>
+          <div role="radiogroup" aria-label={t("언어")} className="flex shrink-0 items-center gap-0.5 text-[12px] tracking-[0.04em]">
+            {(["ko", "en"] as const).map((l) => (
+              <button
+                key={l}
+                type="button"
+                role="radio"
+                aria-checked={lang === l}
+                onClick={() => setLang(l)}
+                className={`h-7 rounded-full px-2.5 transition-colors ${lang === l ? "bg-haze font-medium text-ink" : "text-graphite hover:text-ink"}`}
+              >
+                {l === "ko" ? "KR" : "EN"}
+              </button>
+            ))}
+          </div>
+        </div>
         <h1 className="mt-16 text-[64px] font-bold leading-[0.9] tracking-[-0.06em] sm:text-[96px] lg:mt-0 lg:text-[clamp(96px,11vw,176px)]">
           FORME
         </h1>
         <p className="mt-6 hidden max-w-sm text-[15px] leading-relaxed text-graphite lg:block">
-          작업하다 발견한 이미지를 모으고, 찾고, 프로젝트별로 묶어 두는 나만의 라이브러리.
+          {t("작업하다 발견한 이미지를 모으고, 찾고, 프로젝트별로 묶어 두는 나만의 라이브러리.")}
         </p>
       </section>
 

@@ -1,6 +1,7 @@
 // 무드보드: 레퍼런스를 자유롭게 배치하는 캔버스
 import { getSupabase } from "@/lib/supabase/client";
 import { fetchRefs, type Ref } from "@/lib/refs";
+import { tr } from "@/lib/i18n";
 
 export type Moodboard = {
   id: string;
@@ -88,7 +89,7 @@ export async function createMoodboard(opts: { name: string; collectionId?: strin
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from("moodboards")
-    .insert({ name: opts.name.trim().slice(0, 60) || "새 무드보드", collection_id: opts.collectionId ?? null })
+    .insert({ name: opts.name.trim().slice(0, 60) || tr("새 무드보드"), collection_id: opts.collectionId ?? null })
     .select(BOARD_COLUMNS)
     .single();
   if (error) throw error;
@@ -109,7 +110,7 @@ export async function createMoodboard(opts: { name: string; collectionId?: strin
 }
 
 export async function updateMoodboard(id: string, patch: Partial<Pick<Moodboard, "name" | "background">>): Promise<Moodboard> {
-  const clean = { ...patch, ...(patch.name !== undefined ? { name: patch.name.trim().slice(0, 60) || "무드보드" } : {}) };
+  const clean = { ...patch, ...(patch.name !== undefined ? { name: patch.name.trim().slice(0, 60) || tr("무드보드") } : {}) };
   const { data, error } = await getSupabase().from("moodboards").update(clean).eq("id", id).select(BOARD_COLUMNS).single();
   if (error) throw error;
   return data as Moodboard;

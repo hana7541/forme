@@ -7,6 +7,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useTheme, type ThemeChoice } from "@/components/ThemeProvider";
 import { CloseIcon, LogoutIcon, MenuIcon, PlusIcon, SearchIcon, SettingsIcon } from "@/components/icons";
 import { useShell } from "./AppShell";
+import { useT, type Lang } from "@/lib/i18n";
 
 const iconBtn = "grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink transition-colors hover:bg-haze";
 
@@ -14,6 +15,7 @@ const iconBtn = "grid h-10 w-10 shrink-0 place-items-center rounded-full text-in
 function HeaderSearch() {
   const router = useRouter();
   const params = useSearchParams();
+  const { t } = useT();
   const current = params.get("q") ?? "";
   const [open, setOpen] = useState(!!current);
   const [q, setQ] = useState(current);
@@ -53,7 +55,7 @@ function HeaderSearch() {
     return (
       <button
         type="button"
-        aria-label="검색 (⌘K)"
+        aria-label={t("검색 (⌘K)")}
         className={iconBtn}
         onClick={() => {
           setOpen(true);
@@ -80,12 +82,12 @@ function HeaderSearch() {
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => e.key === "Escape" && !q && close()}
           onBlur={() => !q.trim() && !current && setOpen(false)}
-          placeholder="제목, 메모, 출처, 태그로 찾기"
-          aria-label="레퍼런스 검색"
+          placeholder={t("제목, 메모, 출처, 태그로 찾기")}
+          aria-label={t("레퍼런스 검색")}
           className="h-10 w-full rounded-full bg-haze pl-10 pr-4 text-[14px] outline-none placeholder:text-graphite focus:shadow-[inset_0_0_0_1px_var(--color-ink)] [&::-webkit-search-cancel-button]:hidden"
         />
       </div>
-      <button type="button" aria-label="검색 닫기" onClick={close} className={iconBtn}>
+      <button type="button" aria-label={t("검색 닫기")} onClick={close} className={iconBtn}>
         <CloseIcon size={16} />
       </button>
     </form>
@@ -98,10 +100,16 @@ const THEMES: { value: ThemeChoice; label: string }[] = [
   { value: "system", label: "시스템" },
 ];
 
+const LANGS: { value: Lang; label: string }[] = [
+  { value: "ko", label: "KR" },
+  { value: "en", label: "EN" },
+];
+
 // 설정: 프로필, 테마, 설정 페이지, 로그아웃
 function SettingsMenu() {
   const { profile, signOut } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { t, lang, setLang } = useT();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -127,7 +135,7 @@ function SettingsMenu() {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="설정"
+        aria-label={t("설정")}
         className={`${iconBtn} ${open ? "bg-haze" : ""}`}
       >
         <SettingsIcon />
@@ -141,20 +149,39 @@ function SettingsMenu() {
           </div>
           <div className="h-px bg-hairline" />
           <div className="px-3 pb-2 pt-3">
-            <p className="mb-2 text-[12px] text-graphite">화면 모드</p>
-            <div role="radiogroup" aria-label="화면 모드" className="grid grid-cols-3 rounded-full bg-haze p-0.5">
-              {THEMES.map((t) => (
+            <p className="mb-2 text-[12px] text-graphite">{t("화면 모드")}</p>
+            <div role="radiogroup" aria-label={t("화면 모드")} className="grid grid-cols-3 rounded-full bg-haze p-0.5">
+              {THEMES.map((th) => (
                 <button
-                  key={t.value}
+                  key={th.value}
                   type="button"
                   role="radio"
-                  aria-checked={theme === t.value}
-                  onClick={() => setTheme(t.value)}
+                  aria-checked={theme === th.value}
+                  onClick={() => setTheme(th.value)}
                   className={`h-8 rounded-full text-[12px] transition-colors ${
-                    theme === t.value ? "bg-paper font-medium text-ink shadow-[0_0_0_1px_var(--color-hairline)]" : "text-graphite hover:text-ink"
+                    theme === th.value ? "bg-paper font-medium text-ink shadow-[0_0_0_1px_var(--color-hairline)]" : "text-graphite hover:text-ink"
                   }`}
                 >
-                  {t.label}
+                  {t(th.label)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="px-3 pb-2 pt-1">
+            <p className="mb-2 text-[12px] text-graphite">{t("언어")}</p>
+            <div role="radiogroup" aria-label={t("언어")} className="grid grid-cols-2 rounded-full bg-haze p-0.5">
+              {LANGS.map((l) => (
+                <button
+                  key={l.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={lang === l.value}
+                  onClick={() => setLang(l.value)}
+                  className={`h-8 rounded-full text-[12px] tracking-[0.04em] transition-colors ${
+                    lang === l.value ? "bg-paper font-medium text-ink shadow-[0_0_0_1px_var(--color-hairline)]" : "text-graphite hover:text-ink"
+                  }`}
+                >
+                  {l.label}
                 </button>
               ))}
             </div>
@@ -170,7 +197,7 @@ function SettingsMenu() {
             className="flex h-9 w-full items-center gap-3 rounded-[6px] px-3 text-[14px] hover:bg-haze"
           >
             <SettingsIcon size={16} />
-            설정과 백업
+            {t("설정과 백업")}
           </button>
           <button
             role="menuitem"
@@ -182,7 +209,7 @@ function SettingsMenu() {
             className="flex h-9 w-full items-center gap-3 rounded-[6px] px-3 text-[14px] hover:bg-haze"
           >
             <LogoutIcon size={16} />
-            로그아웃
+            {t("로그아웃")}
           </button>
         </div>
       )}
@@ -192,14 +219,15 @@ function SettingsMenu() {
 
 export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
   const { openUpload } = useShell();
+  const { t } = useT();
 
   return (
     <header className="sticky top-0 z-40 border-b border-hairline bg-paper/90 backdrop-blur-md">
       <div className="relative flex h-16 items-center gap-2 px-4 sm:px-6 lg:px-7">
-        <button type="button" onClick={onOpenMenu} aria-label="메뉴 열기" className={`${iconBtn} -ml-2 lg:hidden`}>
+        <button type="button" onClick={onOpenMenu} aria-label={t("메뉴 열기")} className={`${iconBtn} -ml-2 lg:hidden`}>
           <MenuIcon />
         </button>
-        <Link href="/" className="text-[20px] font-bold leading-none tracking-[-0.05em]" aria-label="FORME 홈">
+        <Link href="/" className="text-[20px] font-bold leading-none tracking-[-0.05em]" aria-label={t("FORME 홈")}>
           FORME.
         </Link>
 
@@ -212,7 +240,7 @@ export function Header({ onOpenMenu }: { onOpenMenu: () => void }) {
             className="ml-1 inline-flex h-10 items-center gap-1.5 rounded-full bg-ink px-3 text-[14px] font-medium text-paper transition-opacity hover:opacity-85 sm:px-4"
           >
             <PlusIcon size={16} />
-            <span className="hidden sm:inline">Add New</span>
+            <span className="hidden sm:inline">{t("추가하기@add")}</span>
           </button>
         </div>
       </div>

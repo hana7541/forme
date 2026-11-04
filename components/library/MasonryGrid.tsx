@@ -5,6 +5,7 @@ import { MenuItem, Popover } from "@/components/Popover";
 import { ExternalIcon, FolderIcon, HeartIcon } from "@/components/icons";
 import type { CollectionPreview } from "@/lib/collections";
 import { gridPath, type Ref } from "@/lib/refs";
+import { useT } from "@/lib/i18n";
 
 // 본문 너비에 따라 열 수: 모바일 2 · 태블릿 3 · 데스크톱 4
 function columnsFor(width: number) {
@@ -117,17 +118,18 @@ function RefTile({
   isSelected: boolean;
   onToggleSelect?: (ref: Ref, range: boolean) => void;
 }) {
+  const { t } = useT();
   const [loaded, setLoaded] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const ratio = item.width && item.height ? `${item.width} / ${item.height}` : "1 / 1";
-  const label = item.title || "제목 없는 레퍼런스";
+  const label = item.title || t("제목 없는 레퍼런스");
 
   return (
     <div className="group relative">
       <button
         type="button"
         onClick={(e) => (selectMode ? onToggleSelect?.(item, e.shiftKey) : onOpen(item))}
-        aria-label={selectMode ? `${label} ${isSelected ? "선택 해제" : "선택"}` : `${label} 열기`}
+        aria-label={selectMode ? `${label} ${isSelected ? t("선택 해제") : t("선택")}` : t("{name} 열기", { name: label })}
         aria-pressed={selectMode ? isSelected : undefined}
         className={`relative block w-full overflow-hidden rounded-[10px] transition-transform duration-150 focus-visible:outline-offset-2 ${
           isSelected ? "scale-[0.96]" : ""
@@ -173,18 +175,18 @@ function RefTile({
         <>
           <div className="absolute right-2.5 top-2.5 flex gap-1.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 has-[[data-open=true]]:opacity-100">
             <Popover
-              label="컬렉션에 넣기"
+              label={t("컬렉션에 넣기")}
               align="end"
               width="w-56"
               trigger={({ toggle }) => (
-                <button type="button" onClick={toggle} aria-label="컬렉션에 넣기" className={actionBtn}>
+                <button type="button" onClick={toggle} aria-label={t("컬렉션에 넣기")} className={actionBtn}>
                   <FolderIcon size={15} />
                 </button>
               )}
             >
               {(close) => (
                 <div className="max-h-64 overflow-y-auto">
-                  <p className="px-3 pb-1 pt-1.5 text-[12px] text-graphite">컬렉션에 넣기</p>
+                  <p className="px-3 pb-1 pt-1.5 text-[12px] text-graphite">{t("컬렉션에 넣기")}</p>
                   {actions.collections.map((c) => (
                     <MenuItem
                       key={c.id}
@@ -203,7 +205,7 @@ function RefTile({
                       close();
                     }}
                   >
-                    + 새 컬렉션
+                    {t("+ 새 컬렉션")}
                   </MenuItem>
                 </div>
               )}
@@ -212,7 +214,7 @@ function RefTile({
               type="button"
               onClick={() => actions.onToggleFavorite(item)}
               aria-pressed={item.is_favorite}
-              aria-label={item.is_favorite ? "즐겨찾기에서 빼기" : "즐겨찾기에 넣기"}
+              aria-label={item.is_favorite ? t("즐겨찾기에서 빼기") : t("즐겨찾기에 넣기")}
               className={actionBtn}
             >
               <HeartIcon size={15} className={item.is_favorite ? "fill-current" : ""} />
@@ -221,7 +223,7 @@ function RefTile({
 
           <div className="absolute bottom-2.5 right-2.5 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 has-[[data-open=true]]:opacity-100">
             <Popover
-              label="더보기"
+              label={t("더보기")}
               side="top"
               align="end"
               width="w-48"
@@ -232,7 +234,7 @@ function RefTile({
                     setConfirmDelete(false);
                     toggle();
                   }}
-                  aria-label="더보기"
+                  aria-label={t("더보기")}
                   className={actionBtn}
                 >
                   <DotsIcon />
@@ -242,14 +244,14 @@ function RefTile({
               {(close) =>
                 confirmDelete ? (
                   <div className="p-1.5">
-                    <p className="px-1.5 pb-2 pt-1 text-[13px] leading-relaxed">이미지와 메모가 함께 지워져요.</p>
+                    <p className="px-1.5 pb-2 pt-1 text-[13px] leading-relaxed">{t("이미지와 메모가 함께 지워져요.")}</p>
                     <div className="flex gap-1.5">
                       <button
                         type="button"
                         onClick={() => setConfirmDelete(false)}
                         className="h-8 flex-1 rounded-full text-[13px] hover:bg-haze"
                       >
-                        취소
+                        {t("취소")}
                       </button>
                       <button
                         type="button"
@@ -259,7 +261,7 @@ function RefTile({
                         }}
                         className="h-8 flex-1 rounded-full bg-red-600 text-[13px] font-medium text-white"
                       >
-                        삭제
+                        {t("삭제")}
                       </button>
                     </div>
                   </div>
@@ -271,7 +273,7 @@ function RefTile({
                         onOpen(item);
                       }}
                     >
-                      자세히 보기
+                      {t("자세히 보기")}
                     </MenuItem>
                     <MenuItem
                       onClick={() => {
@@ -280,12 +282,12 @@ function RefTile({
                       }}
                     >
                       <span className="inline-flex items-center gap-2">
-                        원본 열기 <ExternalIcon size={13} />
+                        {t("원본 열기")} <ExternalIcon size={13} />
                       </span>
                     </MenuItem>
                     <div className="my-1 h-px bg-hairline" />
                     <MenuItem danger onClick={() => setConfirmDelete(true)}>
-                      삭제
+                      {t("삭제")}
                     </MenuItem>
                   </>
                 )

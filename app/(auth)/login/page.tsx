@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import { getSupabase } from "@/lib/supabase/client";
 import { authErrorMessage, usernameToEmail, validateUsername } from "@/lib/auth";
 import { Button, Field, FormAlert } from "@/components/ui";
+import { useT } from "@/lib/i18n";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useT();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ username?: string | null; password?: string | null }>({});
@@ -21,7 +23,7 @@ export default function LoginPage() {
 
     const next = {
       username: validateUsername(username),
-      password: password ? null : "비밀번호를 입력해 주세요.",
+      password: password ? null : t("비밀번호를 입력해 주세요."),
     };
     setErrors(next);
     if (next.username || next.password) return;
@@ -42,8 +44,8 @@ export default function LoginPage() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold tracking-tight">로그인</h1>
-      <p className="mt-1 text-sm text-[var(--muted)]">내 레퍼런스 라이브러리로 들어가요.</p>
+      <h1 className="text-xl font-semibold tracking-tight">{t("로그인")}</h1>
+      <p className="mt-1 text-sm text-[var(--muted)]">{t("내 레퍼런스 라이브러리로 들어가요.")}</p>
 
       <form onSubmit={onSubmit} noValidate className="mt-8 flex flex-col gap-5">
         <Field
@@ -58,7 +60,7 @@ export default function LoginPage() {
           error={errors.username}
         />
         <Field
-          label="비밀번호"
+          label={t("비밀번호")}
           name="password"
           type="password"
           autoComplete="current-password"
@@ -70,14 +72,14 @@ export default function LoginPage() {
         <FormAlert message={formError} />
 
         <Button type="submit" loading={submitting} className="mt-1 w-full">
-          로그인
+          {t("로그인")}
         </Button>
       </form>
 
       <p className="mt-8 text-center text-sm text-[var(--muted)]">
-        처음이신가요?{" "}
+        {t("처음이신가요?")}{" "}
         <Link href="/signup" className="font-medium text-[var(--ink)] underline underline-offset-4">
-          계정 만들기
+          {t("계정 만들기")}
         </Link>
       </p>
     </div>

@@ -6,6 +6,7 @@ import { useToast } from "@/components/Toast";
 import { MenuItem } from "@/components/Popover";
 import { ListControls, ListSelectionBar, type SortOption } from "@/components/library/ListControls";
 import { deleteCollection } from "@/lib/collections";
+import { useT } from "@/lib/i18n";
 import Link from "next/link";
 import { useShell } from "@/components/shell/AppShell";
 import { PlusIcon } from "@/components/icons";
@@ -72,6 +73,7 @@ const SORTS: SortOption[] = [
 function CollectionsScreen() {
   const { counts, openNewCollection, reloadCounts } = useShell();
   const { show } = useToast();
+  const { t } = useT();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -132,10 +134,10 @@ function CollectionsScreen() {
       const ids = [...selected];
       for (const id of ids) await deleteCollection(id);
       await reloadCounts();
-      show(`컬렉션 ${ids.length}개를 지웠어요`);
+      show(t("컬렉션 {n}개를 지웠어요", { n: ids.length }));
       exitSelect();
     } catch {
-      show("컬렉션을 지우지 못했어요.");
+      show(t("컬렉션을 지우지 못했어요."));
     } finally {
       setBusy(false);
     }
@@ -146,13 +148,13 @@ function CollectionsScreen() {
       <header className="mb-10 flex flex-col gap-6 md:mb-12 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-[40px] font-semibold leading-[1.05] tracking-[-0.045em] sm:text-[52px] lg:text-[68px]">
-            Collections
+            {t("컬렉션@nav")}
             <sup className="ml-2 align-super text-[13px] font-normal tracking-normal text-graphite tabular-nums sm:text-[15px]">
               {all?.length ?? ""}
             </sup>
           </h1>
           <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-graphite">
-            프로젝트별로 레퍼런스를 묶어 두는 곳이에요. 한 이미지를 여러 컬렉션에 넣을 수 있어요.
+            {t("프로젝트별로 레퍼런스를 묶어 두는 곳이에요. 한 이미지를 여러 컬렉션에 넣을 수 있어요.")}
           </p>
           {all && all.length === 0 && (
             <button
@@ -160,7 +162,8 @@ function CollectionsScreen() {
               onClick={() => openNewCollection()}
               className="mt-6 inline-flex h-11 items-center gap-2 rounded-full border border-ink px-5 text-[14px] font-medium transition-colors hover:bg-ink hover:text-paper"
             >
-              <PlusIcon size={16} />새 컬렉션
+              <PlusIcon size={16} />
+              {t("새 컬렉션")}
             </button>
           )}
         </div>
@@ -170,7 +173,8 @@ function CollectionsScreen() {
             onClick={() => openNewCollection()}
             className="inline-flex h-11 shrink-0 items-center gap-2 self-start rounded-full border border-ink px-5 text-[14px] font-medium transition-colors hover:bg-ink hover:text-paper md:self-auto"
           >
-            <PlusIcon size={16} />새 컬렉션
+            <PlusIcon size={16} />
+            {t("새 컬렉션")}
           </button>
         )}
       </header>
@@ -184,7 +188,7 @@ function CollectionsScreen() {
           filterActive={hideEmpty}
           filter={() => (
             <MenuItem active={hideEmpty} onClick={() => setParam("hideEmpty", hideEmpty ? null : "1")}>
-              비어 있는 컬렉션 숨기기
+              {t("비어 있는 컬렉션 숨기기")}
             </MenuItem>
           )}
           selectMode={selectMode}
@@ -202,7 +206,7 @@ function CollectionsScreen() {
       )}
 
       {collections && collections.length === 0 && all && all.length > 0 && (
-        <p className="max-w-md text-[15px] leading-relaxed text-graphite">조건에 맞는 컬렉션이 없어요. 필터를 풀어 보세요.</p>
+        <p className="max-w-md text-[15px] leading-relaxed text-graphite">{t("조건에 맞는 컬렉션이 없어요. 필터를 풀어 보세요.")}</p>
       )}
 
       {collections && collections.length > 0 && (
@@ -245,8 +249,8 @@ function CollectionsScreen() {
         <ListSelectionBar
           count={selected.size}
           total={collections?.length ?? 0}
-          noun="컬렉션"
-          note="컬렉션만 지워지고, 안의 이미지는 라이브러리에 남아요."
+          noun={t("컬렉션@noun")}
+          note={t("컬렉션만 지워지고, 안의 이미지는 라이브러리에 남아요.")}
           busy={busy}
           confirming={confirming}
           onConfirm={() => void removeSelected()}

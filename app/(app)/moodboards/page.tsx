@@ -9,6 +9,7 @@ import { useToast } from "@/components/Toast";
 import { useShell } from "@/components/shell/AppShell";
 import { PlusIcon } from "@/components/icons";
 import { createMoodboard, deleteMoodboard, fetchMoodboards, type MoodboardWithItems } from "@/lib/moodboards";
+import { tr, useT, type Lang } from "@/lib/i18n";
 import { gridPath, signedUrls } from "@/lib/refs";
 
 // 카드 미리보기: 보드 배치를 그대로 작게 줄여서 보여 줌
@@ -66,13 +67,13 @@ function BoardPreview({ board, urls }: { board: MoodboardWithItems; urls: Record
   );
 }
 
-function timeAgo(iso: string) {
+function timeAgo(iso: string, lang: Lang) {
   const diff = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (diff < 60) return "방금 고침";
-  if (diff < 3600) return `${Math.floor(diff / 60)}분 전 고침`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}시간 전 고침`;
-  const d = new Date(iso);
-  return `${d.getMonth() + 1}월 ${d.getDate()}일 고침`;
+  if (diff < 60) return tr("방금 고침", undefined, lang);
+  if (diff < 3600) return tr("{n}분 전 고침", { n: Math.floor(diff / 60) }, lang);
+  if (diff < 86400) return tr("{n}시간 전 고침", { n: Math.floor(diff / 3600) }, lang);
+  const date = new Date(iso).toLocaleDateString(lang === "en" ? "en-US" : "ko-KR", { month: "short", day: "numeric" });
+  return tr("{date} 고침", { date }, lang);
 }
 
 function Check({ on }: { on: boolean }) {
@@ -104,6 +105,7 @@ function MoodboardsScreen() {
   const params = useSearchParams();
   const { show } = useToast();
   const { reloadCounts } = useShell();
+  const { t, lang } = useT();
   const [boards, setBoards] = useState<MoodboardWithItems[] | null>(null);
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [creating, setCreating] = useState(false);
@@ -145,11 +147,11 @@ function MoodboardsScreen() {
   async function create() {
     setCreating(true);
     try {
-      const board = await createMoodboard({ name: "새 무드보드" });
+      const board = await createMoodboard({ name: t("새 무드보드") });
       void reloadCounts();
       router.push(`/moodboards/${board.id}`);
     } catch {
-      show("무드보드를 만들지 못했어요.");
+      show(t("무드보드를 만들지 못했어요."));
       setCreating(false);
     }
   }
@@ -176,10 +178,10 @@ function MoodboardsScreen() {
       for (const id of ids) await deleteMoodboard(id);
       setBoards((prev) => prev?.filter((b) => !selected.has(b.id)) ?? prev);
       void reloadCounts();
-      show(`무드보드 ${ids.length}개를 지웠어요`);
+      show(t("무드보드 {n}개를 지웠어요", { n: ids.length }));
       exitSelect();
     } catch {
-      show("무드보드를 지우지 못했어요.");
+      show(t("무드보드를 지우지 못했어요."));
     } finally {
       setBusy(false);
     }
@@ -193,7 +195,7 @@ function MoodboardsScreen() {
       className="inline-flex h-11 shrink-0 items-center gap-2 self-start rounded-full border border-ink px-5 text-[14px] font-medium transition-colors hover:bg-ink hover:text-paper disabled:opacity-50 md:self-auto"
     >
       <PlusIcon size={16} />
-      {creating ? "만드는 중…" : "새 무드보드"}
+      {creating ? t("만드는 중…") : t("새 무드보드")}
     </button>
   );
 
@@ -202,13 +204,13 @@ function MoodboardsScreen() {
       <header className="mb-10 flex flex-col gap-6 md:mb-12 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-[40px] font-semibold leading-[1.05] tracking-[-0.045em] sm:text-[52px] lg:text-[68px]">
-            Moodboards
+            {t("무드보드@nav")}
             <sup className="ml-2 align-super text-[13px] font-normal tracking-normal text-graphite tabular-nums sm:text-[15px]">
               {boards?.length ?? ""}
             </sup>
           </h1>
           <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-graphite">
-            레퍼런스를 캔버스 위에 자유롭게 놓고, 크기를 바꾸고, 겹쳐 보는 곳이에요. 컬렉션 화면에서 바로 만들 수도 있어요.
+            {t("레퍼런스를 캔버스 위에 자유롭게 놓고, 크기를 바꾸고, 겹쳐 보는 곳이에요. 컬렉션 화면에서 바로 만들 수도 있어요.")}
           </p>
           {boards && boards.length === 0 && <div className="mt-6">{newButton}</div>}
         </div>
@@ -224,7 +226,7 @@ function MoodboardsScreen() {
           filterActive={fromCollection}
           filter={() => (
             <MenuItem active={fromCollection} onClick={() => setParam("from", fromCollection ? null : "collection")}>
-              컬렉션에서 만든 보드만
+              {t("컬렉션에서 만든 보드만")}
             </MenuItem>
           )}
           selectMode={selectMode}
@@ -242,7 +244,7 @@ function MoodboardsScreen() {
       )}
 
       {shown && shown.length === 0 && boards && boards.length > 0 && (
-        <p className="max-w-md text-[15px] leading-relaxed text-graphite">조건에 맞는 무드보드가 없어요. 필터를 풀어 보세요.</p>
+        <p className="max-w-md text-[15px] leading-relaxed text-graphite">{t("조건에 맞는 무드보드가 없어요. 필터를 풀어 보세요.")}</p>
       )}
 
       {shown && shown.length > 0 && (
@@ -261,7 +263,7 @@ function MoodboardsScreen() {
                   </p>
                   <p className="shrink-0 text-[13px] tabular-nums text-graphite">{b.moodboard_items.length}</p>
                 </div>
-                <p className="mt-1 text-[13px] text-graphite">{timeAgo(b.updated_at)}</p>
+                <p className="mt-1 text-[13px] text-graphite">{timeAgo(b.updated_at, lang)}</p>
               </>
             );
             return (
@@ -285,8 +287,8 @@ function MoodboardsScreen() {
         <ListSelectionBar
           count={selected.size}
           total={shown?.length ?? 0}
-          noun="무드보드"
-          note="배치만 지워지고, 이미지는 라이브러리에 남아요."
+          noun={t("무드보드@noun")}
+          note={t("배치만 지워지고, 이미지는 라이브러리에 남아요.")}
           busy={busy}
           confirming={confirming}
           onConfirm={() => void removeSelected()}

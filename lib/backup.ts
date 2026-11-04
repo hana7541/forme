@@ -5,6 +5,7 @@
 import JSZip from "jszip";
 import { getSupabase } from "@/lib/supabase/client";
 import { fetchAllRefs, signedUrls, uploadRef, type Ref } from "@/lib/refs";
+import { tr } from "@/lib/i18n";
 
 export const BACKUP_VERSION = 1;
 
@@ -221,12 +222,12 @@ export async function exportBackup(
   zip.file(
     "README.txt",
     [
-      "FORME 백업 파일",
-      `만든 날: ${manifest.exported_at}`,
-      `레퍼런스 ${refs.length}개, 컬렉션 ${collections.length}개, 무드보드 ${moodboards.length}개`,
+      tr("FORME 백업 파일"),
+      tr("만든 날: {date}", { date: manifest.exported_at }),
+      tr("레퍼런스 {r}개, 컬렉션 {c}개, 무드보드 {m}개", { r: refs.length, c: collections.length, m: moodboards.length }),
       "",
-      "images/ 폴더에 원본 이미지가, manifest.json에 제목·메모·태그·컬렉션·무드보드 정보가 들어 있어요.",
-      "FORME 설정 > 백업과 복원 에서 이 ZIP을 그대로 올리면 복원돼요.",
+      tr("images/ 폴더에 원본 이미지가, manifest.json에 제목·메모·태그·컬렉션·무드보드 정보가 들어 있어요."),
+      tr("FORME 설정 > 백업과 복원 에서 이 ZIP을 그대로 올리면 복원돼요."),
     ].join("\n")
   );
 
@@ -248,18 +249,18 @@ export async function readBackup(file: File): Promise<RestorePreview> {
   try {
     zip = await JSZip.loadAsync(file);
   } catch {
-    throw new Error("ZIP 파일을 열 수 없어요.");
+    throw new Error(tr("ZIP 파일을 열 수 없어요."));
   }
   const entry = zip.file("manifest.json");
-  if (!entry) throw new Error("FORME 백업 파일이 아니에요 (manifest.json이 없어요).");
+  if (!entry) throw new Error(tr("FORME 백업 파일이 아니에요 (manifest.json이 없어요)."));
   let manifest: BackupManifest;
   try {
     manifest = JSON.parse(await entry.async("string")) as BackupManifest;
   } catch {
-    throw new Error("백업 정보가 손상됐어요.");
+    throw new Error(tr("백업 정보가 손상됐어요."));
   }
-  if (manifest.app !== "FORME" || typeof manifest.version !== "number") throw new Error("FORME 백업 파일이 아니에요.");
-  if (manifest.version > BACKUP_VERSION) throw new Error("더 새로운 버전의 FORME에서 만든 백업이에요.");
+  if (manifest.app !== "FORME" || typeof manifest.version !== "number") throw new Error(tr("FORME 백업 파일이 아니에요."));
+  if (manifest.version > BACKUP_VERSION) throw new Error(tr("더 새로운 버전의 FORME에서 만든 백업이에요."));
   return { manifest, zip };
 }
 

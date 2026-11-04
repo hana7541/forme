@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/Toast";
 import { useShell } from "@/components/shell/AppShell";
+import { useT } from "@/lib/i18n";
 import { Dialog } from "@/components/Dialog";
 import { Button } from "@/components/ui";
 import { ChevronLeftIcon, PlusIcon, TrashIcon } from "@/components/icons";
@@ -45,6 +46,7 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
   const router = useRouter();
   const { show } = useToast();
   const { reloadCounts } = useShell();
+  const { t } = useT();
 
   const [name, setName] = useState(initial.name);
   const [background, setBackground] = useState(initial.background);
@@ -283,7 +285,7 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
         await deleteBoardItems([id]);
       } catch {
         setItems(before);
-        show("보드에서 빼지 못했어요.");
+        show(t("보드에서 빼지 못했어요."));
       }
     },
     [show]
@@ -335,7 +337,7 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
         setSelectedId(added.at(-1)?.id ?? null);
         setSaveState("saved");
       } catch {
-        show("보드에 넣지 못했어요.");
+        show(t("보드에 넣지 못했어요."));
       }
     },
     [initial.id, centerWorld, show]
@@ -346,14 +348,14 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
 
   // ---------- 보드 이름 · 배경 · 삭제 ----------
   async function saveName() {
-    const v = name.trim() || "무드보드";
+    const v = name.trim() || t("무드보드");
     setName(v);
     if (v === savedName.current) return;
     try {
       await updateMoodboard(initial.id, { name: v });
       savedName.current = v;
     } catch {
-      show("이름을 바꾸지 못했어요.");
+      show(t("이름을 바꾸지 못했어요."));
     }
   }
 
@@ -362,7 +364,7 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
     try {
       await updateMoodboard(initial.id, { background: v });
     } catch {
-      show("배경을 바꾸지 못했어요.");
+      show(t("배경을 바꾸지 못했어요."));
     }
   }
 
@@ -372,15 +374,15 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
       dirty.current.clear();
       void reloadCounts();
       router.replace("/moodboards");
-      show("무드보드를 지웠어요");
+      show(t("무드보드를 지웠어요"));
     } catch {
-      show("무드보드를 지우지 못했어요.");
+      show(t("무드보드를 지우지 못했어요."));
     }
   }
 
   const selected = items.find((i) => i.id === selectedId) ?? null;
   const sortedItems = [...items].sort((a, b) => a.z_index - b.z_index);
-  const saveLabel = saveState === "saving" ? "저장 중…" : saveState === "saved" ? "저장됨" : saveState === "error" ? "저장 실패" : "";
+  const saveLabel = saveState === "saving" ? t("저장 중…") : saveState === "saved" ? t("저장됨") : saveState === "error" ? t("저장 실패") : "";
 
   return (
     <div className="fixed inset-0 z-[45] flex flex-col bg-paper">
@@ -389,7 +391,7 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
         <Link
           href="/moodboards"
           onClick={() => void flush()}
-          aria-label="무드보드 목록으로"
+          aria-label={t("무드보드 목록으로")}
           className="grid h-10 w-10 shrink-0 place-items-center rounded-full hover:bg-haze"
         >
           <ChevronLeftIcon />
@@ -399,7 +401,7 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
           onChange={(e) => setName(e.target.value)}
           onBlur={() => void saveName()}
           onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-          aria-label="무드보드 이름"
+          aria-label={t("무드보드 이름")}
           maxLength={60}
           className="h-10 min-w-0 flex-1 rounded-lg bg-transparent px-2 text-[18px] font-semibold tracking-[-0.03em] outline-none hover:bg-haze focus:bg-haze sm:max-w-sm"
         />
@@ -408,13 +410,13 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
         </span>
 
         <div className="ml-auto flex flex-wrap items-center gap-1">
-          <div className="mr-2 flex items-center gap-1.5" role="group" aria-label="배경색">
+          <div className="mr-2 flex items-center gap-1.5" role="group" aria-label={t("배경색")}>
             {BACKGROUNDS.map((b) => (
               <button
                 key={b.value}
                 type="button"
                 onClick={() => void changeBackground(b.value)}
-                aria-label={`배경 ${b.label}`}
+                aria-label={t("배경 {name}", { name: t(b.label) })}
                 aria-pressed={background === b.value}
                 className={`h-6 w-6 rounded-full border transition-shadow ${
                   background === b.value ? "shadow-[0_0_0_2px_var(--color-paper),0_0_0_3.5px_var(--color-ink)]" : "border-hairline"
@@ -425,9 +427,9 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
           </div>
           <button type="button" onClick={() => setPicking(true)} className="inline-flex h-10 items-center gap-2 rounded-full bg-ink px-4 text-[13px] font-medium text-paper hover:opacity-85">
             <PlusIcon size={15} />
-            이미지 추가
+            {t("이미지 추가")}
           </button>
-          <button type="button" onClick={() => setConfirmDelete(true)} aria-label="무드보드 지우기" className="grid h-10 w-10 place-items-center rounded-full text-graphite hover:bg-haze hover:text-red-600">
+          <button type="button" onClick={() => setConfirmDelete(true)} aria-label={t("무드보드 지우기")} className="grid h-10 w-10 place-items-center rounded-full text-graphite hover:bg-haze hover:text-red-600">
             <TrashIcon size={16} />
           </button>
         </div>
@@ -475,7 +477,7 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
                     />
                     <span
                       onPointerDown={(e) => startResize(e, item)}
-                      aria-label="크기 조절"
+                      aria-label={t("크기 조절")}
                       className="absolute cursor-nwse-resize rounded-full border-2 bg-white"
                       style={{
                         width: 14 / zoom,
@@ -496,9 +498,9 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
         {items.length === 0 && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
             <div className={`max-w-sm text-center ${dark ? "text-white/70" : "text-graphite"}`}>
-              <p className={`text-[22px] font-semibold tracking-[-0.03em] ${dark ? "text-white" : "text-ink"}`}>빈 무드보드예요</p>
+              <p className={`text-[22px] font-semibold tracking-[-0.03em] ${dark ? "text-white" : "text-ink"}`}>{t("빈 무드보드예요")}</p>
               <p className="mt-2 text-[14px] leading-relaxed">
-                ‘이미지 추가’로 라이브러리에서 고르거나, 파일을 이 화면에 끌어다 놓으세요. 올린 이미지는 라이브러리에도 저장돼요.
+                {t("‘이미지 추가’로 라이브러리에서 고르거나, 파일을 이 화면에 끌어다 놓으세요. 올린 이미지는 라이브러리에도 저장돼요.")}
               </p>
             </div>
           </div>
@@ -511,13 +513,13 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
             className="absolute left-1/2 top-4 z-[5] flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-hairline bg-paper p-1"
           >
             <button type="button" className={toolBtn} onClick={() => restack(selected.id, "front")}>
-              맨 앞으로
+              {t("맨 앞으로")}
             </button>
             <button type="button" className={toolBtn} onClick={() => restack(selected.id, "back")}>
-              맨 뒤로
+              {t("맨 뒤로")}
             </button>
             <button type="button" className={`${toolBtn} hover:text-red-600`} onClick={() => void removeItem(selected.id)}>
-              보드에서 빼기
+              {t("보드에서 빼기")}
             </button>
           </div>
         )}
@@ -527,37 +529,37 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
           onPointerDown={(e) => e.stopPropagation()}
           className="absolute bottom-4 right-4 z-[5] flex items-center gap-0.5 rounded-full border border-hairline bg-paper p-1"
         >
-          <button type="button" aria-label="축소" className={`${toolBtn} w-9 justify-center px-0 text-[16px]`} onClick={() => zoomAt(zoom / 1.25)}>
+          <button type="button" aria-label={t("축소")} className={`${toolBtn} w-9 justify-center px-0 text-[16px]`} onClick={() => zoomAt(zoom / 1.25)}>
             −
           </button>
-          <button type="button" className={`${toolBtn} min-w-[3.5rem] justify-center tabular-nums`} onClick={() => zoomAt(1)} aria-label="100%로 보기">
+          <button type="button" className={`${toolBtn} min-w-[3.5rem] justify-center tabular-nums`} onClick={() => zoomAt(1)} aria-label={t("100%로 보기")}>
             {Math.round(zoom * 100)}%
           </button>
-          <button type="button" aria-label="확대" className={`${toolBtn} w-9 justify-center px-0 text-[16px]`} onClick={() => zoomAt(zoom * 1.25)}>
+          <button type="button" aria-label={t("확대")} className={`${toolBtn} w-9 justify-center px-0 text-[16px]`} onClick={() => zoomAt(zoom * 1.25)}>
             +
           </button>
           <button type="button" className={toolBtn} onClick={() => fit()}>
-            맞춤
+            {t("맞춤")}
           </button>
         </div>
 
         <p className={`pointer-events-none absolute bottom-5 left-5 z-[5] hidden text-[12px] lg:block ${dark ? "text-white/50" : "text-graphite"}`}>
-          빈 곳을 끌면 화면 이동, 핀치로 확대, Delete로 빼기, [ ]로 겹침 순서
+          {t("빈 곳을 끌면 화면 이동, 핀치로 확대, Delete로 빼기, [ ]로 겹침 순서")}
         </p>
       </div>
 
-      <RefPicker open={picking} onClose={() => setPicking(false)} onPick={(refs) => void addRefs(refs)} confirmLabel={(n) => `${n}개 보드에 넣기`} />
+      <RefPicker open={picking} onClose={() => setPicking(false)} onPick={(refs) => void addRefs(refs)} confirmLabel={(n) => t("{n}개 보드에 넣기", { n })} />
 
-      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} title="무드보드를 지울까요?">
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)} title={t("무드보드를 지울까요?")}>
         <p className="text-[15px] leading-relaxed text-graphite">
-          배치만 지워지고, 보드에 있던 이미지는 라이브러리에 그대로 남아요.
+          {t("배치만 지워지고, 보드에 있던 이미지는 라이브러리에 그대로 남아요.")}
         </p>
         <div className="mt-6 flex justify-end gap-2">
           <Button type="button" variant="ghost" onClick={() => setConfirmDelete(false)}>
-            취소
+            {t("취소")}
           </Button>
           <Button type="button" onClick={() => void doDelete()} className="bg-red-600! text-white!">
-            지우기
+            {t("지우기")}
           </Button>
         </div>
       </Dialog>

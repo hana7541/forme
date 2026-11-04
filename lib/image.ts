@@ -3,6 +3,8 @@
 // - 그리드용 작은 썸네일 (무료 플랜은 서버에서 자동 축소가 안 돼서 직접 만듦)
 // - 이미지가 뜨기 전 칸을 채울 대표색
 
+import { tr } from "@/lib/i18n";
+
 export const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif", "image/avif"];
 export const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB (Storage 버킷 제한과 같음)
 const THUMB_MAX_WIDTH = 900;
@@ -28,8 +30,8 @@ export function fileExtension(file: File): string {
 }
 
 export function validateImageFile(file: File): string | null {
-  if (!ACCEPTED_TYPES.includes(file.type)) return "PNG, JPG, WEBP, GIF, AVIF 이미지만 올릴 수 있어요.";
-  if (file.size > MAX_FILE_BYTES) return "20MB보다 큰 이미지는 올릴 수 없어요.";
+  if (!ACCEPTED_TYPES.includes(file.type)) return tr("PNG, JPG, WEBP, GIF, AVIF 이미지만 올릴 수 있어요.");
+  if (file.size > MAX_FILE_BYTES) return tr("20MB보다 큰 이미지는 올릴 수 없어요.");
   return null;
 }
 

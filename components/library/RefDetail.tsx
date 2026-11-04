@@ -11,6 +11,7 @@ import {
 } from "@/components/icons";
 import { useToast } from "@/components/Toast";
 import { TagInput } from "@/components/library/TagInput";
+import { tr, useT } from "@/lib/i18n";
 import { formatBytes } from "@/lib/image";
 import type { CategoryWithCount } from "@/lib/library";
 import type { CollectionPreview } from "@/lib/collections";
@@ -55,13 +56,12 @@ function normalizeUrl(raw: string): { value: string | null; error: string | null
     if (!u.hostname.includes(".")) throw new Error();
     return { value: u.toString(), error: null };
   } catch {
-    return { value: null, error: "주소 형식이 맞지 않아요. 예: https://example.com" };
+    return { value: null, error: tr("주소 형식이 맞지 않아요. 예: https://example.com") };
   }
 }
 
-function formatDate(iso: string) {
-  const d = new Date(iso);
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+function formatDate(iso: string, locale: string) {
+  return new Date(iso).toLocaleDateString(locale, { year: "numeric", month: "long", day: "numeric" });
 }
 
 const MIME_LABEL: Record<string, string> = {
@@ -90,6 +90,7 @@ export function RefDetail({
   onDeleted,
 }: Props) {
   const { show } = useToast();
+  const { t, cat, locale } = useT();
   const dialogRef = useRef<HTMLDivElement>(null);
 
   // 편집 중인 값들
@@ -143,7 +144,7 @@ export function RefDetail({
     let cancelled = false;
     setTags([]);
     fetchRefTags(item.id)
-      .then((t) => !cancelled && setTags(t))
+      .then((list) => !cancelled && setTags(list))
       .catch(() => {});
     return () => {
       cancelled = true;
@@ -178,7 +179,7 @@ export function RefDetail({
       onCollectionsChanged(currentCollectionId ? next.has(currentCollectionId) : true);
     } catch {
       setInCollections(inCollections);
-      show("컬렉션을 바꾸지 못했어요.");
+      show(t("컬렉션을 바꾸지 못했어요."));
     }
   }
 
@@ -201,8 +202,8 @@ export function RefDetail({
   const pendingPatch = useCallback((): RefPatch | null => {
     const cur = itemRef.current;
     const patch: RefPatch = {};
-    const t = title.trim().slice(0, 120);
-    if (t !== cur.title) patch.title = t;
+    const nextTitle = title.trim().slice(0, 120);
+    if (nextTitle !== cur.title) patch.title = nextTitle;
     if (memo !== cur.memo) patch.memo = memo.slice(0, 5000);
     const src = normalizeUrl(source);
     if (!src.error && src.value !== (cur.source_url ?? null)) patch.source_url = src.value;
@@ -214,8 +215,8 @@ export function RefDetail({
     setSourceError(src.error);
     const patch = pendingPatch();
     if (!patch) return;
-    const t = setTimeout(() => void save(patch), 700);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => void save(patch), 700);
+    return () => clearTimeout(timer);
   }, [title, memo, source, pendingPatch, save]);
 
   const flush = useCallback(async () => {
@@ -276,11 +277,11 @@ export function RefDetail({
     try {
       const tag = await addTagToRef(item.id, name);
       setTags((prev) =>
-        prev.some((t) => t.id === tag.id) ? prev : [...prev, tag].sort((a, b) => a.name.localeCompare(b.name, "ko"))
+        prev.some((x) => x.id === tag.id) ? prev : [...prev, tag].sort((a, b) => a.name.localeCompare(b.name, "ko"))
       );
-      setAllTags((prev) => (prev.some((t) => t.id === tag.id) ? prev : [...prev, tag]));
+      setAllTags((prev) => (prev.some((x) => x.id === tag.id) ? prev : [...prev, tag]));
     } catch {
-      show("태그를 추가하지 못했어요.");
+      show(t("태그를 추가하지 못했어요."));
     } finally {
       setTagBusy(false);
     }
@@ -288,12 +289,12 @@ export function RefDetail({
 
   async function removeTag(tag: Tag) {
     const before = tags;
-    setTags((prev) => prev.filter((t) => t.id !== tag.id));
+    setTags((prev) => prev.filter((x) => x.id !== tag.id));
     try {
       await removeTagFromRef(item.id, tag.id);
     } catch {
       setTags(before);
-      show("태그를 빼지 못했어요.");
+      show(t("태그를 빼지 못했어요."));
     }
   }
 
@@ -304,7 +305,7 @@ export function RefDetail({
       onDeleted(item);
     } catch {
       setDeleting(false);
-      show("삭제하지 못했어요. 잠시 후 다시 시도해 주세요.");
+      show(t("삭제하지 못했어요. 잠시 후 다시 시도해 주세요."));
     }
   }
 
@@ -314,20 +315,20 @@ export function RefDetail({
       const url = map[item.storage_path];
       if (url) window.open(url, "_blank", "noopener,noreferrer");
     } catch {
-      show("원본을 열지 못했어요.");
+      show(t("원본을 열지 못했어요."));
     }
   }
 
   const ratio = item.width && item.height ? `${item.width} / ${item.height}` : undefined;
   const saveLabel =
-    saveState === "saving" ? "저장 중…" : saveState === "saved" ? "저장됨" : saveState === "error" ? "저장하지 못했어요" : "";
+    saveState === "saving" ? t("저장 중…") : saveState === "saved" ? t("저장됨") : saveState === "error" ? t("저장하지 못했어요") : "";
 
   return (
     <div
       ref={dialogRef}
       role="dialog"
       aria-modal="true"
-      aria-label={item.title || "레퍼런스 상세"}
+      aria-label={item.title || t("레퍼런스 상세")}
       tabIndex={-1}
       className="fixed inset-0 z-50 flex flex-col bg-paper outline-none"
     >
@@ -339,14 +340,14 @@ export function RefDetail({
           className="inline-flex h-10 items-center gap-2 rounded-full px-3 text-[14px] hover:bg-haze"
         >
           <CloseIcon size={16} />
-          닫기
+          {t("닫기")}
         </button>
         <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={() => void go(onPrev)}
             disabled={!onPrev}
-            aria-label="이전 레퍼런스"
+            aria-label={t("이전 레퍼런스")}
             className="grid h-10 w-10 place-items-center rounded-full hover:bg-haze disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronLeftIcon />
@@ -355,7 +356,7 @@ export function RefDetail({
             type="button"
             onClick={() => void go(onNext)}
             disabled={!onNext}
-            aria-label="다음 레퍼런스"
+            aria-label={t("다음 레퍼런스")}
             className="grid h-10 w-10 place-items-center rounded-full hover:bg-haze disabled:opacity-30 disabled:hover:bg-transparent"
           >
             <ChevronRightIcon />
@@ -393,13 +394,13 @@ export function RefDetail({
         <aside className="border-t border-hairline px-5 pb-16 pt-6 sm:px-8 lg:h-full lg:overflow-y-auto lg:border-l lg:border-t-0 lg:pt-8">
           <div className="flex items-start justify-between gap-3">
             <label className="sr-only" htmlFor="ref-title">
-              제목
+              {t("제목")}
             </label>
             <textarea
               id="ref-title"
               value={title}
               onChange={(e) => setTitle(e.target.value.replace(/\n/g, " "))}
-              placeholder="제목 없음"
+              placeholder={t("제목 없음")}
               rows={1}
               maxLength={120}
               className="field-sizing-content min-h-[34px] flex-1 resize-none bg-transparent text-[24px] font-semibold leading-tight tracking-[-0.03em] outline-none placeholder:text-graphite/60"
@@ -408,7 +409,7 @@ export function RefDetail({
               type="button"
               onClick={() => void toggleFavorite()}
               aria-pressed={item.is_favorite}
-              aria-label={item.is_favorite ? "즐겨찾기에서 빼기" : "즐겨찾기에 넣기"}
+              aria-label={item.is_favorite ? t("즐겨찾기에서 빼기") : t("즐겨찾기에 넣기")}
               className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border transition-colors ${
                 item.is_favorite ? "border-ink bg-ink text-paper" : "border-hairline hover:border-ink"
               }`}
@@ -423,13 +424,13 @@ export function RefDetail({
           <div className="mt-6 flex flex-col gap-7">
             <div>
               <label htmlFor="ref-memo" className="mb-2 block text-[13px] text-graphite">
-                메모
+                {t("메모")}
               </label>
               <textarea
                 id="ref-memo"
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
-                placeholder="왜 저장했는지, 어디에 쓰고 싶은지 적어 두세요."
+                placeholder={t("왜 저장했는지, 어디에 쓰고 싶은지 적어 두세요.")}
                 rows={4}
                 className="field-sizing-content min-h-[104px] w-full resize-none rounded-lg border border-hairline px-3.5 py-3 text-[14px] leading-relaxed outline-none placeholder:text-graphite focus:border-ink"
               />
@@ -437,7 +438,7 @@ export function RefDetail({
 
             <div>
               <label htmlFor="ref-source" className="mb-2 block text-[13px] text-graphite">
-                출처
+                {t("출처")}
               </label>
               <div className="flex gap-2">
                 <input
@@ -457,7 +458,7 @@ export function RefDetail({
                     href={item.source_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label="출처 열기"
+                    aria-label={t("출처 열기")}
                     className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border border-hairline hover:border-ink"
                   >
                     <ExternalIcon size={16} />
@@ -468,7 +469,7 @@ export function RefDetail({
             </div>
 
             <div>
-              <p className="mb-2 text-[13px] text-graphite">카테고리</p>
+              <p className="mb-2 text-[13px] text-graphite">{t("카테고리")}</p>
               <div className="flex flex-wrap gap-1.5">
                 {categories.map((c) => {
                   const on = item.category_id === c.id;
@@ -482,22 +483,22 @@ export function RefDetail({
                         on ? "border-ink bg-ink text-paper" : "border-hairline hover:border-ink"
                       }`}
                     >
-                      {c.name}
+                      {cat(c.name)}
                     </button>
                   );
                 })}
               </div>
-              <p className="mt-2 text-[12px] text-graphite">한 번 더 누르면 카테고리가 빠져요.</p>
+              <p className="mt-2 text-[12px] text-graphite">{t("한 번 더 누르면 카테고리가 빠져요.")}</p>
             </div>
 
             <div>
-              <p className="mb-2 text-[13px] text-graphite">태그</p>
-              <TagInput tags={tags} allTags={allTags} onAdd={(n) => void addTag(n)} onRemove={(t) => void removeTag(t)} busy={tagBusy} />
+              <p className="mb-2 text-[13px] text-graphite">{t("태그")}</p>
+              <TagInput tags={tags} allTags={allTags} onAdd={(n) => void addTag(n)} onRemove={(x) => void removeTag(x)} busy={tagBusy} />
             </div>
 
             {collections.length > 0 && (
               <div>
-                <p className="mb-2 text-[13px] text-graphite">컬렉션</p>
+                <p className="mb-2 text-[13px] text-graphite">{t("컬렉션")}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {collections.map((c) => {
                     const on = inCollections.has(c.id);
@@ -520,14 +521,14 @@ export function RefDetail({
             )}
 
             <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 border-t border-hairline pt-6 text-[13px]">
-              <dt className="text-graphite">크기</dt>
+              <dt className="text-graphite">{t("크기")}</dt>
               <dd className="tabular-nums">{item.width && item.height ? `${item.width} × ${item.height}px` : "-"}</dd>
-              <dt className="text-graphite">용량</dt>
+              <dt className="text-graphite">{t("용량")}</dt>
               <dd className="tabular-nums">{formatBytes(item.file_size)}</dd>
-              <dt className="text-graphite">형식</dt>
+              <dt className="text-graphite">{t("형식")}</dt>
               <dd>{(item.mime_type && MIME_LABEL[item.mime_type]) ?? "-"}</dd>
-              <dt className="text-graphite">추가한 날</dt>
-              <dd className="tabular-nums">{formatDate(item.created_at)}</dd>
+              <dt className="text-graphite">{t("추가한 날")}</dt>
+              <dd className="tabular-nums">{formatDate(item.created_at, locale)}</dd>
             </dl>
 
             <div className="flex flex-wrap items-center gap-2 border-t border-hairline pt-6">
@@ -537,7 +538,7 @@ export function RefDetail({
                 className="inline-flex h-10 items-center gap-2 rounded-full border border-hairline px-4 text-[13px] hover:border-ink"
               >
                 <ExternalIcon size={15} />
-                원본 보기
+                {t("원본 보기")}
               </button>
 
               {!confirmDelete ? (
@@ -547,17 +548,17 @@ export function RefDetail({
                   className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-[13px] text-graphite hover:bg-haze hover:text-red-600"
                 >
                   <TrashIcon size={15} />
-                  삭제
+                  {t("삭제")}
                 </button>
               ) : (
                 <div className="flex w-full items-center gap-2 rounded-xl bg-haze p-2 pl-4 sm:w-auto">
-                  <p className="flex-1 text-[13px]">이미지와 메모, 태그 연결이 함께 지워져요.</p>
+                  <p className="flex-1 text-[13px]">{t("이미지와 메모, 태그 연결이 함께 지워져요.")}</p>
                   <button
                     type="button"
                     onClick={() => setConfirmDelete(false)}
                     className="h-9 rounded-full px-3 text-[13px] hover:bg-paper"
                   >
-                    취소
+                    {t("취소")}
                   </button>
                   <button
                     type="button"
@@ -565,7 +566,7 @@ export function RefDetail({
                     disabled={deleting}
                     className="h-9 rounded-full bg-red-600 px-4 text-[13px] font-medium text-white disabled:opacity-50"
                   >
-                    {deleting ? "삭제 중…" : "삭제하기"}
+                    {deleting ? t("삭제 중…") : t("삭제하기")}
                   </button>
                 </div>
               )}

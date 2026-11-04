@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { CloseIcon } from "@/components/icons";
+import { useT } from "@/lib/i18n";
 
 type Props = {
   open: boolean;
@@ -14,13 +15,14 @@ type Props = {
 // 화면 가운데 뜨는 작은 창 (모바일에서는 아래에서 올라옴)
 export function Dialog({ open, title, onClose, children, width = "max-w-[440px]" }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const { t } = useT();
 
   useEffect(() => {
     if (!open) return;
     const prevFocus = document.activeElement as HTMLElement | null;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       const first = panelRef.current?.querySelector<HTMLElement>("input, textarea, select, button[data-autofocus]");
       (first ?? panelRef.current)?.focus();
     }, 30);
@@ -32,7 +34,7 @@ export function Dialog({ open, title, onClose, children, width = "max-w-[440px]"
     };
     window.addEventListener("keydown", onKey, true);
     return () => {
-      clearTimeout(t);
+      clearTimeout(timer);
       document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKey, true);
       prevFocus?.focus?.();
@@ -57,7 +59,7 @@ export function Dialog({ open, title, onClose, children, width = "max-w-[440px]"
           <button
             type="button"
             onClick={onClose}
-            aria-label="닫기"
+            aria-label={t("닫기")}
             className="-mr-2 -mt-1 grid h-9 w-9 shrink-0 place-items-center rounded-full text-graphite hover:bg-haze hover:text-ink"
           >
             <CloseIcon size={16} />

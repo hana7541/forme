@@ -6,6 +6,8 @@ import { useShell } from "@/components/shell/AppShell";
 import { useToast } from "@/components/Toast";
 import { Button, Field, FormAlert } from "@/components/ui";
 import { CloseIcon, LogoutIcon } from "@/components/icons";
+import { useTheme, type ThemeChoice } from "@/components/ThemeProvider";
+import { useT, type Lang } from "@/lib/i18n";
 import { exportBackup, readBackup, restoreBackup, type Progress, type RestorePreview, type RestoreResult } from "@/lib/backup";
 import {
   changePassword,
@@ -36,11 +38,12 @@ function Section({ id, title, note, children }: { id: string; title: string; not
 }
 
 function ProgressBar({ p }: { p: Progress }) {
+  const { t } = useT();
   const pct = p.total ? Math.round((p.done / p.total) * 100) : 0;
   return (
     <div className="mt-4" role="status" aria-live="polite">
       <div className="flex justify-between text-[13px]">
-        <span>{p.stage}</span>
+        <span>{t(p.stage)}</span>
         <span className="tabular-nums text-graphite">{p.total > 1 ? `${p.done} / ${p.total}` : ""}</span>
       </div>
       <div className="mt-2 h-[3px] overflow-hidden rounded-full bg-haze">
@@ -54,6 +57,7 @@ function ProgressBar({ p }: { p: Progress }) {
 function ProfileSection() {
   const { profile, session, refreshProfile } = useAuth();
   const { show } = useToast();
+  const { t } = useT();
   const [name, setName] = useState(profile?.display_name ?? "");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -68,18 +72,18 @@ function ProfileSection() {
     try {
       await updateDisplayName(session.user.id, name);
       await refreshProfile();
-      show("표시 이름을 바꿨어요");
+      show(t("표시 이름을 바꿨어요"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "저장하지 못했어요.");
+      setError(err instanceof Error ? t(err.message) : t("저장하지 못했어요."));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Section id="profile" title="프로필" note="표시 이름은 화면에 보이는 이름이에요. 로그인 아이디(Username)는 바꿀 수 없어요.">
+    <Section id="profile" title={t("프로필")} note={t("표시 이름은 화면에 보이는 이름이에요. 로그인 아이디(Username)는 바꿀 수 없어요.")}>
       <form onSubmit={submit} noValidate className="flex flex-col gap-5">
-        <Field label="표시 이름" name="display-name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />
+        <Field label={t("표시 이름")} name="display-name" maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />
         <div className="flex flex-col gap-1.5">
           <p className="text-sm font-medium">Username</p>
           <p className="flex h-11 items-center rounded-lg bg-haze px-3.5 text-[15px] text-graphite">@{profile?.username}</p>
@@ -87,7 +91,7 @@ function ProfileSection() {
         <FormAlert message={error} />
         <div>
           <Button type="submit" loading={saving} disabled={name.trim() === profile?.display_name}>
-            저장
+            {t("저장")}
           </Button>
         </div>
       </form>
@@ -98,6 +102,7 @@ function ProfileSection() {
 // ---------- 비밀번호 ----------
 function PasswordSection() {
   const { show } = useToast();
+  const { t } = useT();
   const [pw, setPw] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +112,7 @@ function PasswordSection() {
     e.preventDefault();
     setError(null);
     if (pw !== confirm) {
-      setError("두 비밀번호가 서로 달라요.");
+      setError(t("두 비밀번호가 서로 달라요."));
       return;
     }
     setSaving(true);
@@ -115,23 +120,23 @@ function PasswordSection() {
       await changePassword(pw);
       setPw("");
       setConfirm("");
-      show("비밀번호를 바꿨어요");
+      show(t("비밀번호를 바꿨어요"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "비밀번호를 바꾸지 못했어요.");
+      setError(err instanceof Error ? t(err.message) : t("비밀번호를 바꾸지 못했어요."));
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Section id="password" title="비밀번호" note="다른 기기에서도 새 비밀번호로 로그인해요.">
+    <Section id="password" title={t("비밀번호")} note={t("다른 기기에서도 새 비밀번호로 로그인해요.")}>
       <form onSubmit={submit} noValidate className="flex flex-col gap-5">
-        <Field label="새 비밀번호" name="new-password" type="password" autoComplete="new-password" hint="6자 이상" value={pw} onChange={(e) => setPw(e.target.value)} />
-        <Field label="새 비밀번호 확인" name="confirm-password" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+        <Field label={t("새 비밀번호")} name="new-password" type="password" autoComplete="new-password" hint={t("6자 이상")} value={pw} onChange={(e) => setPw(e.target.value)} />
+        <Field label={t("새 비밀번호 확인")} name="confirm-password" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         <FormAlert message={error} />
         <div>
           <Button type="submit" loading={saving} disabled={!pw}>
-            비밀번호 바꾸기
+            {t("비밀번호 바꾸기")}
           </Button>
         </div>
       </form>
@@ -155,6 +160,7 @@ function CategoryRow({
   onRenamed: (id: string, name: string) => Promise<void>;
   onDelete: (c: Category) => void;
 }) {
+  const { t } = useT();
   const [name, setName] = useState(c.name);
   useEffect(() => setName(c.name), [c.name]);
 
@@ -166,16 +172,16 @@ function CategoryRow({
         onBlur={() => name.trim() !== c.name && void onRenamed(c.id, name).catch(() => setName(c.name))}
         onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
         maxLength={30}
-        aria-label={`${c.name} 이름`}
+        aria-label={t("{name} 이름", { name: c.name })}
         className="h-10 min-w-0 flex-1 rounded-lg border border-transparent px-3 text-[15px] outline-none hover:border-hairline focus:border-ink"
       />
-      <button type="button" aria-label="위로" disabled={index === 0} onClick={() => onMove(index, index - 1)} className="grid h-9 w-9 place-items-center rounded-full text-graphite hover:bg-haze hover:text-ink disabled:opacity-30">
+      <button type="button" aria-label={t("위로")} disabled={index === 0} onClick={() => onMove(index, index - 1)} className="grid h-9 w-9 place-items-center rounded-full text-graphite hover:bg-haze hover:text-ink disabled:opacity-30">
         ↑
       </button>
-      <button type="button" aria-label="아래로" disabled={index === count - 1} onClick={() => onMove(index, index + 1)} className="grid h-9 w-9 place-items-center rounded-full text-graphite hover:bg-haze hover:text-ink disabled:opacity-30">
+      <button type="button" aria-label={t("아래로")} disabled={index === count - 1} onClick={() => onMove(index, index + 1)} className="grid h-9 w-9 place-items-center rounded-full text-graphite hover:bg-haze hover:text-ink disabled:opacity-30">
         ↓
       </button>
-      <button type="button" aria-label={`${c.name} 지우기`} onClick={() => onDelete(c)} className="grid h-9 w-9 place-items-center rounded-full text-graphite hover:bg-haze hover:text-red-600">
+      <button type="button" aria-label={t("{name} 지우기", { name: c.name })} onClick={() => onDelete(c)} className="grid h-9 w-9 place-items-center rounded-full text-graphite hover:bg-haze hover:text-red-600">
         <CloseIcon size={14} />
       </button>
     </li>
@@ -185,6 +191,7 @@ function CategoryRow({
 function CategorySection() {
   const { reloadCounts, counts } = useShell();
   const { show } = useToast();
+  const { t } = useT();
   const [list, setList] = useState<Category[] | null>(null);
   const [newName, setNewName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -199,7 +206,7 @@ function CategorySection() {
       setList((prev) => prev?.map((c) => (c.id === id ? { ...c, name: name.trim() } : c)) ?? prev);
       void reloadCounts();
     } catch (e) {
-      show(e instanceof Error ? e.message : "이름을 바꾸지 못했어요.");
+      show(e instanceof Error ? t(e.message) : t("이름을 바꾸지 못했어요."));
       throw e;
     }
   }
@@ -215,14 +222,14 @@ function CategorySection() {
 
   async function remove(c: Category) {
     const n = counts?.categories.find((x) => x.id === c.id)?.count ?? 0;
-    if (n > 0 && !window.confirm(`‘${c.name}’에 레퍼런스 ${n}개가 있어요. 카테고리만 지우고 이미지는 남길까요?`)) return;
+    if (n > 0 && !window.confirm(t("‘{name}’에 레퍼런스 {n}개가 있어요. 카테고리만 지우고 이미지는 남길까요?", { name: c.name, n }))) return;
     try {
       await deleteCategory(c.id);
       setList((prev) => prev?.filter((x) => x.id !== c.id) ?? prev);
       void reloadCounts();
-      show(`‘${c.name}’ 카테고리를 지웠어요`);
+      show(t("‘{name}’ 카테고리를 지웠어요", { name: c.name }));
     } catch {
-      show("지우지 못했어요.");
+      show(t("지우지 못했어요."));
     }
   }
 
@@ -235,14 +242,14 @@ function CategorySection() {
       setNewName("");
       void reloadCounts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "만들지 못했어요.");
+      setError(err instanceof Error ? t(err.message) : t("만들지 못했어요."));
     }
   }
 
   return (
-    <Section id="categories" title="카테고리" note="이미지 하나에 카테고리 하나를 붙여요. 이름을 눌러 바로 고칠 수 있어요.">
+    <Section id="categories" title={t("카테고리")} note={t("이미지 하나에 카테고리 하나를 붙여요. 이름을 눌러 바로 고칠 수 있어요.")}>
       {list === null ? (
-        <p className="text-[14px] text-graphite">불러오는 중…</p>
+        <p className="text-[14px] text-graphite">{t("불러오는 중…")}</p>
       ) : (
         <ul className="-mx-3">
           {list.map((c, i) => (
@@ -255,12 +262,12 @@ function CategorySection() {
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           maxLength={30}
-          placeholder="새 카테고리 이름"
-          aria-label="새 카테고리 이름"
+          placeholder={t("새 카테고리 이름")}
+          aria-label={t("새 카테고리 이름")}
           className="h-11 min-w-0 flex-1 rounded-lg border border-hairline px-3.5 text-[15px] outline-none placeholder:text-graphite focus:border-ink"
         />
         <Button type="submit" variant="ghost" disabled={!newName.trim()}>
-          추가
+          {t("추가")}
         </Button>
       </form>
       {error && <p className="mt-2 text-[13px] text-red-600">{error}</p>}
@@ -272,8 +279,9 @@ function CategorySection() {
 function TagSection() {
   const { counts, reloadCounts } = useShell();
   const { show } = useToast();
+  const { t } = useT();
   const tags = counts?.tags ?? [];
-  const unused = tags.filter((t) => t.ref_count === 0);
+  const unused = tags.filter((tg) => tg.ref_count === 0);
   const [editing, setEditing] = useState<string | null>(null);
   const [text, setText] = useState("");
 
@@ -283,7 +291,7 @@ function TagSection() {
       setEditing(null);
       void reloadCounts();
     } catch (e) {
-      show(e instanceof Error ? e.message : "이름을 바꾸지 못했어요.");
+      show(e instanceof Error ? t(e.message) : t("이름을 바꾸지 못했어요."));
     }
   }
 
@@ -293,24 +301,24 @@ function TagSection() {
       void reloadCounts();
       show(label);
     } catch {
-      show("태그를 지우지 못했어요.");
+      show(t("태그를 지우지 못했어요."));
     }
   }
 
   return (
-    <Section id="tags" title="태그" note="태그를 지워도 이미지는 그대로 남아요. 태그를 누르면 이름을 고칠 수 있어요.">
+    <Section id="tags" title={t("태그")} note={t("태그를 지워도 이미지는 그대로 남아요. 태그를 누르면 이름을 고칠 수 있어요.")}>
       {tags.length === 0 ? (
-        <p className="text-[14px] leading-relaxed text-graphite">아직 태그가 없어요. 이미지를 열어 태그를 붙여 보세요.</p>
+        <p className="text-[14px] leading-relaxed text-graphite">{t("아직 태그가 없어요. 이미지를 열어 태그를 붙여 보세요.")}</p>
       ) : (
         <>
           <ul className="flex flex-wrap gap-2">
-            {tags.map((t) =>
-              editing === t.id ? (
-                <li key={t.id}>
+            {tags.map((tg) =>
+              editing === tg.id ? (
+                <li key={tg.id}>
                   <form
                     onSubmit={(e) => {
                       e.preventDefault();
-                      void save(t.id);
+                      void save(tg.id);
                     }}
                     className="flex items-center gap-1"
                   >
@@ -321,28 +329,28 @@ function TagSection() {
                       onBlur={() => setEditing(null)}
                       onKeyDown={(e) => e.key === "Escape" && setEditing(null)}
                       maxLength={30}
-                      aria-label="태그 이름"
+                      aria-label={t("태그 이름")}
                       className="h-8 w-36 rounded-full border border-ink px-3 text-[13px] outline-none"
                     />
                   </form>
                 </li>
               ) : (
-                <li key={t.id} className="inline-flex h-8 items-center rounded-full border border-hairline pl-3 pr-1 text-[13px]">
+                <li key={tg.id} className="inline-flex h-8 items-center rounded-full border border-hairline pl-3 pr-1 text-[13px]">
                   <button
                     type="button"
                     onClick={() => {
-                      setEditing(t.id);
-                      setText(t.name);
+                      setEditing(tg.id);
+                      setText(tg.name);
                     }}
                     className="hover:underline hover:underline-offset-4"
                   >
-                    {t.name}
+                    {tg.name}
                   </button>
-                  <span className="ml-1.5 tabular-nums text-graphite">{t.ref_count}</span>
+                  <span className="ml-1.5 tabular-nums text-graphite">{tg.ref_count}</span>
                   <button
                     type="button"
-                    aria-label={`${t.name} 태그 지우기`}
-                    onClick={() => void remove([t.id], `‘${t.name}’ 태그를 지웠어요`)}
+                    aria-label={t("{name} 태그 지우기", { name: tg.name })}
+                    onClick={() => void remove([tg.id], t("‘{name}’ 태그를 지웠어요", { name: tg.name }))}
                     className="ml-1 grid h-6 w-6 place-items-center rounded-full text-graphite hover:bg-haze hover:text-red-600"
                   >
                     <CloseIcon size={12} />
@@ -354,10 +362,10 @@ function TagSection() {
           {unused.length > 0 && (
             <button
               type="button"
-              onClick={() => void remove(unused.map((t) => t.id), `안 쓰는 태그 ${unused.length}개를 지웠어요`)}
+              onClick={() => void remove(unused.map((tg) => tg.id), t("안 쓰는 태그 {n}개를 지웠어요", { n: unused.length }))}
               className="mt-5 text-[13px] text-graphite underline underline-offset-4 hover:text-ink"
             >
-              아무 이미지에도 안 붙은 태그 {unused.length}개 지우기
+              {t("아무 이미지에도 안 붙은 태그 {n}개 지우기", { n: unused.length })}
             </button>
           )}
         </>
@@ -372,22 +380,23 @@ const NO_CATEGORY = "__none__";
 function BackupSection() {
   const { session } = useAuth();
   const { reloadCounts, counts } = useShell();
+  const { t, cat, locale } = useT();
   const [scope, setScope] = useState<"all" | "category" | "collection">("all");
   const [pickedCats, setPickedCats] = useState<Set<string>>(new Set());
   const [pickedCols, setPickedCols] = useState<Set<string>>(new Set());
   const picked = scope === "collection" ? pickedCols : pickedCats;
   const setPicked = scope === "collection" ? setPickedCols : setPickedCats;
-  const unit = scope === "collection" ? "컬렉션" : "카테고리";
+  const unit = scope === "collection" ? "collection" : "category";
 
   // 지금 고를 수 있는 목록 (카테고리 또는 컬렉션)
   const options =
     scope === "collection"
       ? (counts?.collections ?? []).map((c) => ({ id: c.id, name: c.name, count: c.ref_count }))
       : [
-          ...(counts?.categories ?? []).map((c) => ({ id: c.id, name: c.name, count: c.count })),
+          ...(counts?.categories ?? []).map((c) => ({ id: c.id, name: cat(c.name), count: c.count })),
           {
             id: NO_CATEGORY,
-            name: "카테고리 없음",
+            name: t("카테고리 없음"),
             count: Math.max(0, (counts?.total ?? 0) - (counts?.categories ?? []).reduce((n, c) => n + c.count, 0)),
           },
         ];
@@ -425,10 +434,10 @@ function BackupSection() {
         scope === "all"
           ? []
           : [...picked]
-              .map((id) => (id === NO_CATEGORY ? "카테고리없음" : options.find((o) => o.id === id)?.name ?? ""))
+              .map((id) => (id === NO_CATEGORY ? t("카테고리없음") : options.find((o) => o.id === id)?.name ?? ""))
               .filter(Boolean)
               .map((n) => n.replace(/[\\/:*?"<>|\s]+/g, ""));
-      const label = names.length > 3 ? `${names.slice(0, 3).join("-")}-외${names.length - 3}` : names.join("-");
+      const label = names.length > 3 ? `${names.slice(0, 3).join("-")}-${t("외{n}", { n: names.length - 3 })}` : names.join("-");
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -437,9 +446,9 @@ function BackupSection() {
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      show(missing ? `${count - missing}개를 백업했어요 (${missing}개는 원본을 못 받았어요)` : `레퍼런스 ${count}개를 백업했어요`);
+      show(missing ? t("{n}개를 백업했어요 ({m}개는 원본을 못 받았어요)", { n: count - missing, m: missing }) : t("레퍼런스 {n}개를 백업했어요", { n: count }));
     } catch {
-      setError("백업 파일을 만들지 못했어요. 잠시 후 다시 시도해 주세요.");
+      setError(t("백업 파일을 만들지 못했어요. 잠시 후 다시 시도해 주세요."));
     } finally {
       setBusy(null);
       setProgress(null);
@@ -453,7 +462,7 @@ function BackupSection() {
     try {
       setPreview(await readBackup(file));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "백업 파일을 읽지 못했어요.");
+      setError(e instanceof Error ? t(e.message) : t("백업 파일을 읽지 못했어요."));
     }
   }
 
@@ -467,7 +476,7 @@ function BackupSection() {
       setPreview(null);
       void reloadCounts();
     } catch {
-      setError("복원하다 멈췄어요. 같은 파일로 다시 복원하면 이미 들어간 건 건너뛰고 이어서 해요.");
+      setError(t("복원하다 멈췄어요. 같은 파일로 다시 복원하면 이미 들어간 건 건너뛰고 이어서 해요."));
     } finally {
       setBusy(null);
       setProgress(null);
@@ -479,20 +488,20 @@ function BackupSection() {
   return (
     <Section
       id="backup"
-      title="백업과 복원"
-      note="원본 이미지와 제목·메모·태그·컬렉션·무드보드를 ZIP 파일 하나로 내려받아요. 같은 파일로 다시 복원할 수 있어요."
+      title={t("백업과 복원")}
+      note={t("원본 이미지와 제목·메모·태그·컬렉션·무드보드를 ZIP 파일 하나로 내려받아요. 같은 파일로 다시 복원할 수 있어요.")}
     >
       <div className="flex flex-col gap-8">
         <div>
-          <p className="text-[15px] font-medium">ZIP으로 백업</p>
+          <p className="text-[15px] font-medium">{t("ZIP으로 백업")}</p>
           <p className="mt-1 text-[13px] leading-relaxed text-graphite">
-            이미지가 많으면 몇 분 걸릴 수 있어요. 끝날 때까지 이 화면을 닫지 마세요.
+            {t("이미지가 많으면 몇 분 걸릴 수 있어요. 끝날 때까지 이 화면을 닫지 마세요.")}
           </p>
 
-          <div role="radiogroup" aria-label="백업 범위" className="mt-4 inline-flex rounded-full bg-haze p-1">
+          <div role="radiogroup" aria-label={t("백업 범위")} className="mt-4 inline-flex rounded-full bg-haze p-1">
             {(
               [
-                ["all", "전체"],
+                ["all", "전체@backup"],
                 ["category", "카테고리별"],
                 ["collection", "컬렉션별"],
               ] as const
@@ -506,14 +515,14 @@ function BackupSection() {
                 disabled={!!busy}
                 className={`h-9 rounded-full px-4 text-[13px] transition-colors ${scope === v ? "bg-paper font-medium text-ink shadow-[0_0_0_1px_var(--color-hairline)]" : "text-graphite hover:text-ink"}`}
               >
-                {label}
+                {t(label)}
               </button>
             ))}
           </div>
 
           {scope === "all" ? (
             <p className="mt-3 text-[13px] text-graphite tabular-nums">
-              레퍼런스 {counts?.total ?? 0}개와 컬렉션·무드보드를 모두 담아요.
+              {t("레퍼런스 {n}개와 컬렉션·무드보드를 모두 담아요.", { n: counts?.total ?? 0 })}
             </p>
           ) : (
             <div className="mt-4">
@@ -545,12 +554,12 @@ function BackupSection() {
                 })}
               </div>
               {scope === "collection" && options.length === 0 && (
-                <p className="text-[13px] text-graphite">아직 컬렉션이 없어요.</p>
+                <p className="text-[13px] text-graphite">{t("아직 컬렉션이 없어요.")}</p>
               )}
               <p className="mt-3 text-[13px] leading-relaxed text-graphite">
                 {scope === "collection"
-                  ? "고른 컬렉션과 그 안의 이미지, 그 이미지가 놓인 무드보드만 담아요."
-                  : "고른 카테고리의 이미지와, 그 이미지가 들어 있는 컬렉션·무드보드만 담아요."}
+                  ? t("고른 컬렉션과 그 안의 이미지, 그 이미지가 놓인 무드보드만 담아요.")
+                  : t("고른 카테고리의 이미지와, 그 이미지가 들어 있는 컬렉션·무드보드만 담아요.")}
               </p>
             </div>
           )}
@@ -563,51 +572,51 @@ function BackupSection() {
               disabled={!!busy || (scope !== "all" && picked.size === 0)}
             >
               {scope === "all"
-                ? "전체 백업 내려받기"
+                ? t("전체 백업 내려받기")
                 : picked.size
-                  ? `고른 ${unit} ${picked.size}개 내려받기`
-                  : `${unit}${scope === "collection" ? "을" : "를"} 골라 주세요`}
+                  ? t(unit === "collection" ? "고른 컬렉션 {n}개 내려받기" : "고른 카테고리 {n}개 내려받기", { n: picked.size })
+                  : t(unit === "collection" ? "컬렉션을 골라 주세요" : "카테고리를 골라 주세요")}
             </Button>
           </div>
           {busy === "export" && progress && <ProgressBar p={progress} />}
         </div>
 
         <div>
-          <p className="text-[15px] font-medium">백업에서 복원</p>
+          <p className="text-[15px] font-medium">{t("백업에서 복원")}</p>
           <p className="mt-1 text-[13px] leading-relaxed text-graphite">
-            지금 라이브러리에 더해져요. 이미 있는 이미지(같은 날짜·용량·제목)는 건너뛰어서, 두 번 복원해도 겹치지 않아요.
+            {t("지금 라이브러리에 더해져요. 이미 있는 이미지(같은 날짜·용량·제목)는 건너뛰어서, 두 번 복원해도 겹치지 않아요.")}
           </p>
           <input ref={fileRef} type="file" accept=".zip,application/zip" hidden onChange={(e) => void pickFile(e.target.files?.[0]).finally(() => (e.target.value = ""))} />
 
           {!preview && (
             <div className="mt-4">
               <Button type="button" variant="ghost" onClick={() => fileRef.current?.click()} disabled={!!busy}>
-                백업 파일 고르기
+                {t("백업 파일 고르기")}
               </Button>
             </div>
           )}
 
           {m && (
             <div className="mt-4 rounded-xl border border-hairline p-5">
-              <p className="text-[14px] font-medium">이 백업을 복원할까요?</p>
+              <p className="text-[14px] font-medium">{t("이 백업을 복원할까요?")}</p>
               <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1.5 text-[13px]">
-                <dt className="text-graphite">만든 날</dt>
-                <dd className="tabular-nums">{new Date(m.exported_at).toLocaleString("ko-KR")}</dd>
-                <dt className="text-graphite">레퍼런스</dt>
-                <dd className="tabular-nums">{m.refs.length}개</dd>
-                <dt className="text-graphite">컬렉션</dt>
-                <dd className="tabular-nums">{m.collections.length}개</dd>
-                <dt className="text-graphite">무드보드</dt>
-                <dd className="tabular-nums">{m.moodboards.length}개</dd>
-                <dt className="text-graphite">태그</dt>
-                <dd className="tabular-nums">{m.tags.length}개</dd>
+                <dt className="text-graphite">{t("만든 날")}</dt>
+                <dd className="tabular-nums">{new Date(m.exported_at).toLocaleString(locale)}</dd>
+                <dt className="text-graphite">{t("레퍼런스")}</dt>
+                <dd className="tabular-nums">{t("{n}개", { n: m.refs.length })}</dd>
+                <dt className="text-graphite">{t("컬렉션")}</dt>
+                <dd className="tabular-nums">{t("{n}개", { n: m.collections.length })}</dd>
+                <dt className="text-graphite">{t("무드보드@label")}</dt>
+                <dd className="tabular-nums">{t("{n}개", { n: m.moodboards.length })}</dd>
+                <dt className="text-graphite">{t("태그@label")}</dt>
+                <dd className="tabular-nums">{t("{n}개", { n: m.tags.length })}</dd>
               </dl>
               <div className="mt-5 flex gap-2">
                 <Button type="button" onClick={() => void doRestore()} loading={busy === "restore"} disabled={!!busy}>
-                  복원하기
+                  {t("복원하기")}
                 </Button>
                 <Button type="button" variant="ghost" onClick={() => setPreview(null)} disabled={!!busy}>
-                  취소
+                  {t("취소")}
                 </Button>
               </div>
               {busy === "restore" && progress && <ProgressBar p={progress} />}
@@ -616,10 +625,11 @@ function BackupSection() {
 
           {result && (
             <div className="mt-4 rounded-xl bg-haze p-5 text-[14px] leading-relaxed">
-              <p className="font-medium">복원을 마쳤어요</p>
+              <p className="font-medium">{t("복원을 마쳤어요")}</p>
               <p className="mt-1 text-graphite">
-                새로 넣은 이미지 {result.added}개, 이미 있어서 건너뛴 이미지 {result.skipped}개
-                {result.failed ? `, 넣지 못한 이미지 ${result.failed}개` : ""}. 컬렉션 {result.collections}개와 무드보드 {result.moodboards}개를 새로 만들었어요.
+                {t("새로 넣은 이미지 {a}개, 이미 있어서 건너뛴 이미지 {s}개", { a: result.added, s: result.skipped })}
+                {result.failed ? t(", 넣지 못한 이미지 {n}개", { n: result.failed }) : ""}
+                {t(". 컬렉션 {c}개와 무드보드 {m}개를 새로 만들었어요.", { c: result.collections, m: result.moodboards })}
               </p>
             </div>
           )}
@@ -630,24 +640,93 @@ function BackupSection() {
   );
 }
 
+const THEME_OPTIONS: { value: ThemeChoice; label: string }[] = [
+  { value: "light", label: "라이트" },
+  { value: "dark", label: "다크" },
+  { value: "system", label: "시스템" },
+];
+const LANG_OPTIONS: { value: Lang; label: string }[] = [
+  { value: "ko", label: "KR · 한국어" },
+  { value: "en", label: "EN · English" },
+];
+
+function Segmented<V extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: V;
+  options: { value: V; label: string }[];
+  onChange: (v: V) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="inline-flex rounded-full bg-haze p-1">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="radio"
+          aria-checked={value === o.value}
+          onClick={() => onChange(o.value)}
+          className={`h-9 rounded-full px-4 text-[13px] transition-colors ${
+            value === o.value ? "bg-paper font-medium text-ink shadow-[0_0_0_1px_var(--color-hairline)]" : "text-graphite hover:text-ink"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// 화면 모드 · 언어 (헤더 설정 메뉴와 같은 값)
+function DisplaySection() {
+  const { t, lang, setLang } = useT();
+  const { theme, setTheme } = useTheme();
+  return (
+    <Section id="display" title={t("화면과 언어")} note={t("이 기기에서만 적용돼요. 헤더의 설정 메뉴에서도 바꿀 수 있어요.")}>
+      <div className="flex flex-col gap-6">
+        <div>
+          <p className="mb-2.5 text-sm font-medium">{t("언어")}</p>
+          <Segmented label={t("언어")} value={lang} options={LANG_OPTIONS} onChange={setLang} />
+        </div>
+        <div>
+          <p className="mb-2.5 text-sm font-medium">{t("화면 모드")}</p>
+          <Segmented
+            label={t("화면 모드")}
+            value={theme}
+            options={THEME_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}
+            onChange={setTheme}
+          />
+        </div>
+      </div>
+    </Section>
+  );
+}
+
 function AccountSection() {
   const { signOut } = useAuth();
+  const { t } = useT();
   return (
-    <Section id="account" title="계정">
+    <Section id="account" title={t("계정")}>
       <Button type="button" variant="ghost" onClick={() => void signOut()}>
         <LogoutIcon size={16} />
-        로그아웃
+        {t("로그아웃")}
       </Button>
     </Section>
   );
 }
 
 export default function SettingsPage() {
+  const { t } = useT();
   return (
     <div>
       <header className="mb-10 md:mb-14">
-        <h1 className="text-[40px] font-semibold leading-[1.05] tracking-[-0.045em] sm:text-[52px] lg:text-[68px]">Settings</h1>
+        <h1 className="text-[40px] font-semibold leading-[1.05] tracking-[-0.045em] sm:text-[52px] lg:text-[68px]">{t("설정")}</h1>
       </header>
+      <DisplaySection />
       <ProfileSection />
       <PasswordSection />
       <CategorySection />

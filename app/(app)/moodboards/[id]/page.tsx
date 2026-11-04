@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { BoardEditor } from "@/components/moodboard/BoardEditor";
 import { fetchMoodboard, type MoodboardWithItems } from "@/lib/moodboards";
+import { useT } from "@/lib/i18n";
 
 export default function MoodboardPage() {
   const { id } = useParams<{ id: string }>();
+  const { t } = useT();
   const [board, setBoard] = useState<MoodboardWithItems | null>(null);
   const [missing, setMissing] = useState(false);
 
@@ -30,10 +32,10 @@ export default function MoodboardPage() {
   if (missing) {
     return (
       <div className="max-w-md">
-        <h1 className="text-[40px] font-semibold tracking-[-0.045em]">무드보드를 찾을 수 없어요</h1>
-        <p className="mt-4 text-[15px] text-graphite">삭제됐거나 주소가 잘못됐어요.</p>
+        <h1 className="text-[40px] font-semibold tracking-[-0.045em]">{t("무드보드를 찾을 수 없어요")}</h1>
+        <p className="mt-4 text-[15px] text-graphite">{t("삭제됐거나 주소가 잘못됐어요.")}</p>
         <Link href="/moodboards" className="mt-6 inline-block text-[14px] underline underline-offset-4">
-          무드보드 목록으로
+          {t("무드보드 목록으로")}
         </Link>
       </div>
     );

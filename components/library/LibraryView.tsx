@@ -8,6 +8,7 @@ import { MenuItem, Popover } from "@/components/Popover";
 import { ChevronDownIcon, CloseIcon, HeartIcon, SlidersIcon } from "@/components/icons";
 import { MasonryGrid, type TileActions } from "@/components/library/MasonryGrid";
 import { ListControls } from "@/components/library/ListControls";
+import { tr, useT } from "@/lib/i18n";
 import { RefDetail } from "@/components/library/RefDetail";
 import { SelectionBar } from "@/components/library/SelectionBar";
 import { onRefCreated } from "@/lib/events";
@@ -85,6 +86,7 @@ const chipOff = "border-hairline text-ink hover:border-ink";
 export function LibraryView({ base, title, description, actions, empty, collectionId, lockTag, categoryFilter }: Props) {
   const { counts, reloadCounts, openNewCollection } = useShell();
   const { show } = useToast();
+  const { t, cat: catName } = useT();
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -164,7 +166,7 @@ export function LibraryView({ base, title, description, actions, empty, collecti
         setHasMore(list.length === PAGE_SIZE);
         await addUrls(list);
       })
-      .catch((e: { message?: string }) => gen === generation.current && setLoadError(e.message ?? "불러오지 못했어요."))
+      .catch((e: { message?: string }) => gen === generation.current && setLoadError(e.message ?? tr("불러오지 못했어요.")))
       .finally(() => gen === generation.current && setLoading(false));
   }, [addUrls]);
 
@@ -193,7 +195,7 @@ export function LibraryView({ base, title, description, actions, empty, collecti
       setHasMore(list.length === PAGE_SIZE);
       await addUrls(list);
     } catch {
-      show("더 불러오지 못했어요. 잠시 후 다시 스크롤해 주세요.");
+      show(t("더 불러오지 못했어요. 잠시 후 다시 스크롤해 주세요."));
     } finally {
       loadingMore.current = false;
     }
@@ -302,7 +304,7 @@ export function LibraryView({ base, title, description, actions, empty, collecti
         applyChanges([await updateRef(r.id, { is_favorite: optimistic.is_favorite })]);
       } catch {
         setItems((prev) => prev.map((x) => (x.id === r.id ? r : x)));
-        show("즐겨찾기를 바꾸지 못했어요.");
+        show(t("즐겨찾기를 바꾸지 못했어요."));
       }
     },
     [applyChanges, show]
@@ -377,10 +379,10 @@ export function LibraryView({ base, title, description, actions, empty, collecti
       void addRefsToCollection(cid, [r.id])
         .then(() => {
           void reloadCounts();
-          const name = counts?.collections.find((c) => c.id === cid)?.name ?? "컬렉션";
-          show(`‘${name}’에 넣었어요`);
+          const name = counts?.collections.find((c) => c.id === cid)?.name ?? "";
+          show(t("‘{name}’ 컬렉션에 넣었어요", { name }));
         })
-        .catch(() => show("컬렉션에 넣지 못했어요.")),
+        .catch(() => show(t("컬렉션에 넣지 못했어요."))),
     onNewCollection: (r) => openNewCollection({ refIds: [r.id], stay: true }),
     onOpenOriginal: (r) => {
       // 팝업 차단을 피하려고 창을 먼저 열고, 주소를 받은 뒤 채움
@@ -396,7 +398,7 @@ export function LibraryView({ base, title, description, actions, empty, collecti
         })
         .catch(() => {
           w?.close();
-          show("원본을 열지 못했어요.");
+          show(t("원본을 열지 못했어요."));
         });
     },
     onDelete: (r) =>
@@ -404,15 +406,15 @@ export function LibraryView({ base, title, description, actions, empty, collecti
         .then(() => {
           removeLocal([r.id]);
           void reloadCounts();
-          show("레퍼런스를 삭제했어요");
+          show(t("레퍼런스를 삭제했어요"));
         })
-        .catch(() => show("삭제하지 못했어요.")),
+        .catch(() => show(t("삭제하지 못했어요."))),
   };
 
   // ---------- 화면 ----------
 
   const tags = counts?.tags ?? [];
-  const activeTag = tagParam ? tags.find((t) => t.id === tagParam) : null;
+  const activeTag = tagParam ? tags.find((tg) => tg.id === tagParam) : null;
   const showEmpty = !loading && !loadError && items.length === 0;
   const index = detailRef ? items.findIndex((r) => r.id === detailRef.id) : -1;
   const prev = index > 0 ? items[index - 1] : null;
@@ -440,8 +442,8 @@ export function LibraryView({ base, title, description, actions, empty, collecti
             {/* 카테고리를 고르면 제목·사이드바가 이미 보여 주므로 칩 줄은 숨김 */}
             {categoryFilter && !catParam && (
               <>
-                <button type="button" onClick={() => setParam("category", null)} aria-pressed className={`${chip} ${chipOn}`}>
-                  All
+                <button type="button" onClick={() => setParam("category", null)} aria-pressed className={`${chip} ${chipOn} max-md:hidden`}>
+                  {t("전체@chip")}
                 </button>
                 {(counts?.categories ?? []).map((c) => (
                   <button
@@ -449,9 +451,9 @@ export function LibraryView({ base, title, description, actions, empty, collecti
                     type="button"
                     onClick={() => setParam("category", c.id === catParam ? null : c.id)}
                     aria-pressed={c.id === catParam}
-                    className={`${chip} ${c.id === catParam ? chipOn : chipOff}`}
+                    className={`${chip} ${c.id === catParam ? chipOn : chipOff} max-md:hidden`}
                   >
-                    {c.name}
+                    {catName(c.name)}
                   </button>
                 ))}
               </>
@@ -459,11 +461,11 @@ export function LibraryView({ base, title, description, actions, empty, collecti
             {/* 컬렉션 안에서는 제목이 컬렉션 이름이라, 고른 카테고리를 지울 수 있게 하나만 보여 줌 */}
             {categoryFilter && catParam && base.collectionId && (
               <span className={`${chip} ${chipOn} pr-1.5`}>
-                {counts?.categories.find((c) => c.id === catParam)?.name ?? "카테고리"}
+                {catName(counts?.categories.find((c) => c.id === catParam)?.name ?? "") || t("카테고리")}
                 <button
                   type="button"
                   onClick={() => setParam("category", null)}
-                  aria-label="카테고리 거름망 지우기"
+                  aria-label={t("카테고리 거름망 지우기")}
                   className="grid h-6 w-6 place-items-center rounded-full hover:bg-paper/15"
                 >
                   <CloseIcon size={12} />
@@ -476,7 +478,7 @@ export function LibraryView({ base, title, description, actions, empty, collecti
                 <button
                   type="button"
                   onClick={() => setParam("tag", null)}
-                  aria-label="태그 거름망 지우기"
+                  aria-label={t("태그 거름망 지우기")}
                   className="grid h-6 w-6 place-items-center rounded-full hover:bg-paper/15"
                 >
                   <CloseIcon size={12} />
@@ -486,11 +488,11 @@ export function LibraryView({ base, title, description, actions, empty, collecti
             {favParam && !base.favorites && (
               <span className={`${chip} ${chipOn} pr-1.5`}>
                 <HeartIcon size={13} className="fill-current" />
-                즐겨찾기만
+                {t("즐겨찾기만")}
                 <button
                   type="button"
                   onClick={() => setParam("fav", null)}
-                  aria-label="즐겨찾기 거름망 지우기"
+                  aria-label={t("즐겨찾기 거름망 지우기")}
                   className="grid h-6 w-6 place-items-center rounded-full hover:bg-paper/15"
                 >
                   <CloseIcon size={12} />
@@ -513,7 +515,7 @@ export function LibraryView({ base, title, description, actions, empty, collecti
                   <>
                     <MenuItem active={favParam} onClick={() => setParam("fav", favParam ? null : "1")}>
                       <span className="inline-flex items-center gap-2">
-                        <HeartIcon size={14} /> 즐겨찾기만 보기
+                        <HeartIcon size={14} /> {t("즐겨찾기만 보기")}
                       </span>
                     </MenuItem>
                     <div className="my-1 h-px bg-hairline" />
@@ -521,25 +523,25 @@ export function LibraryView({ base, title, description, actions, empty, collecti
                 )}
                 {!lockTag && (
                   <>
-                    <p className="px-3 pb-1 pt-1.5 text-[12px] text-graphite">태그</p>
-                    {tags.filter((t) => t.ref_count > 0).length === 0 ? (
+                    <p className="px-3 pb-1 pt-1.5 text-[12px] text-graphite">{t("태그")}</p>
+                    {tags.filter((tg) => tg.ref_count > 0).length === 0 ? (
                       <p className="px-3 pb-2.5 text-[13px] leading-relaxed text-graphite">
-                        아직 태그가 없어요. 이미지를 열어 태그를 붙여 보세요.
+                        {t("아직 태그가 없어요. 이미지를 열어 태그를 붙여 보세요.")}
                       </p>
                     ) : (
                       <div className="max-h-64 overflow-y-auto">
                         {tags
-                          .filter((t) => t.ref_count > 0)
-                          .map((t) => (
+                          .filter((tg) => tg.ref_count > 0)
+                          .map((tg) => (
                             <MenuItem
-                              key={t.id}
-                              active={t.id === tagParam}
+                              key={tg.id}
+                              active={tg.id === tagParam}
                               onClick={() => {
-                                setParam("tag", t.id === tagParam ? null : t.id);
+                                setParam("tag", tg.id === tagParam ? null : tg.id);
                                 close();
                               }}
                             >
-                              {t.name} <span className="text-graphite">{t.ref_count}</span>
+                              {tg.name} <span className="text-graphite">{tg.ref_count}</span>
                             </MenuItem>
                           ))}
                       </div>
@@ -557,10 +559,10 @@ export function LibraryView({ base, title, description, actions, empty, collecti
 
       {showEmpty && refining && (
         <p className="mb-10 max-w-md text-[15px] leading-relaxed text-graphite">
-          조건에 맞는 레퍼런스가 없어요. 위의 거름망을 풀어 보세요.
+          {t("조건에 맞는 레퍼런스가 없어요. 위의 거름망을 풀어 보세요.")}
         </p>
       )}
-      {loadError && <p className="mb-8 text-[15px] text-red-600">레퍼런스를 불러오지 못했어요: {loadError}</p>}
+      {loadError && <p className="mb-8 text-[15px] text-red-600">{t("레퍼런스를 불러오지 못했어요: {msg}", { msg: loadError })}</p>}
 
       {(loading && items.length === 0) || (showEmpty && !refining) ? <GhostGrid animate={showEmpty} /> : null}
 
@@ -598,30 +600,30 @@ export function LibraryView({ base, title, description, actions, empty, collecti
           onFavorite={(v) =>
             void runBulk(async () => {
               applyChanges(await updateRefs(ids, { is_favorite: v }));
-              show(v ? `${ids.length}개를 즐겨찾기에 넣었어요` : `${ids.length}개를 즐겨찾기에서 뺐어요`);
-            }, "즐겨찾기를 바꾸지 못했어요.")
+              show(v ? t("{n}개를 즐겨찾기에 넣었어요", { n: ids.length }) : t("{n}개를 즐겨찾기에서 뺐어요", { n: ids.length }));
+            }, t("즐겨찾기를 바꾸지 못했어요."))
           }
           onCategory={(cat) =>
             void runBulk(async () => {
               applyChanges(await updateRefs(ids, { category_id: cat }));
               const name = counts?.categories.find((c) => c.id === cat)?.name;
-              show(name ? `${ids.length}개를 ‘${name}’로 옮겼어요` : `${ids.length}개의 카테고리를 뺐어요`);
-            }, "카테고리를 바꾸지 못했어요.")
+              show(name ? t("{n}개를 ‘{name}’로 옮겼어요", { n: ids.length, name: catName(name) }) : t("{n}개의 카테고리를 뺐어요", { n: ids.length }));
+            }, t("카테고리를 바꾸지 못했어요."))
           }
           onTag={(name) =>
             void runBulk(async () => {
               const tag = await addTagToRefs(ids, name);
               void reloadCounts();
-              show(`${ids.length}개에 ‘${tag.name}’ 태그를 붙였어요`);
-            }, "태그를 붙이지 못했어요.")
+              show(t("{n}개에 ‘{name}’ 태그를 붙였어요", { n: ids.length, name: tag.name }));
+            }, t("태그를 붙이지 못했어요."))
           }
           onAddToCollection={(cid) =>
             void runBulk(async () => {
               await addRefsToCollection(cid, ids);
               void reloadCounts();
-              const name = counts?.collections.find((c) => c.id === cid)?.name ?? "컬렉션";
-              show(`${ids.length}개를 ‘${name}’에 넣었어요`);
-            }, "컬렉션에 넣지 못했어요.")
+              const name = counts?.collections.find((c) => c.id === cid)?.name ?? "";
+              show(t("{n}개를 ‘{name}’에 넣었어요", { n: ids.length, name }));
+            }, t("컬렉션에 넣지 못했어요."))
           }
           onNewCollection={() => openNewCollection({ refIds: ids, stay: true })}
           onRemoveFromCollection={() =>
@@ -630,8 +632,8 @@ export function LibraryView({ base, title, description, actions, empty, collecti
               await removeRefsFromCollection(collectionId, ids);
               removeLocal(ids);
               void reloadCounts();
-              show(`${ids.length}개를 컬렉션에서 뺐어요`);
-            }, "컬렉션에서 빼지 못했어요.")
+              show(t("{n}개를 컬렉션에서 뺐어요", { n: ids.length }));
+            }, t("컬렉션에서 빼지 못했어요."))
           }
           onDelete={() =>
             void runBulk(async () => {
@@ -639,8 +641,8 @@ export function LibraryView({ base, title, description, actions, empty, collecti
               await deleteRefs(selectedRefs);
               removeLocal(selectedRefs.map((r) => r.id));
               void reloadCounts();
-              show(`${n}개를 삭제했어요`);
-            }, "삭제하지 못했어요.")
+              show(t("{n}개를 삭제했어요", { n }));
+            }, t("삭제하지 못했어요."))
           }
         />
       )}
@@ -663,7 +665,7 @@ export function LibraryView({ base, title, description, actions, empty, collecti
             removeLocal([r.id]);
             void reloadCounts();
             closeRef();
-            show("레퍼런스를 삭제했어요");
+            show(t("레퍼런스를 삭제했어요"));
           }}
         />
       )}
