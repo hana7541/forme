@@ -438,7 +438,7 @@ export async function restoreBackup(
       result.moodboards++;
       const rows = (manifest.moodboard_items ?? [])
         .filter((i) => i.moodboard_id === b.id)
-        .flatMap((i) => {
+        .flatMap((i): Record<string, unknown>[] => {
           const base = { moodboard_id: boardId, x: i.x, y: i.y, width: i.width, height: i.height, rotation: i.rotation ?? 0, z_index: i.z_index ?? 0 };
           if (i.kind === "text") {
             if (!i.content) return [];
