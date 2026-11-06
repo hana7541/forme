@@ -148,3 +148,67 @@ export const DownloadIcon = (p: IconProps) => (
     <path d="M10 3.5V13M6.5 9.5 10 13l3.5-3.5M4 13.5v2A1.5 1.5 0 0 0 5.5 17h9a1.5 1.5 0 0 0 1.5-1.5v-2" />
   </Svg>
 );
+
+export const TextIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4.5 5.5V4h11v1.5M10 4v12M7.5 16h5" />
+  </Svg>
+);
+
+export const AlignLeftIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.5 5h13M3.5 9h8.5M3.5 13h13M3.5 17h8.5" />
+  </Svg>
+);
+
+export const AlignCenterIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.5 5h13M5.75 9h8.5M3.5 13h13M5.75 17h8.5" />
+  </Svg>
+);
+
+export const AlignRightIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3.5 5h13M8 9h8.5M3.5 13h13M8 17h8.5" />
+  </Svg>
+);
+
+// 겹침 순서: 위로 한 칸 / 맨 위 / 아래로 한 칸 / 맨 아래
+export const ForwardIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="7" y="3.5" width="9.5" height="9.5" rx="1" />
+    <path d="M4.5 7.5v7a2 2 0 0 0 2 2h7" />
+  </Svg>
+);
+
+export const FrontIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M10 16V7M6.5 10.5 10 7l3.5 3.5M4 3.5h12" />
+  </Svg>
+);
+
+export const BackwardIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="7" width="9.5" height="9.5" rx="1" />
+    <path d="M7.5 4.5h7a2 2 0 0 1 2 2v7" />
+  </Svg>
+);
+
+export const BackIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M10 4v9M6.5 9.5 10 13l3.5-3.5M4 16.5h12" />
+  </Svg>
+);
+
+export const DuplicateIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="7" y="7" width="9.5" height="9.5" rx="1.5" />
+    <path d="M13 4.5V4a.5.5 0 0 0-.5-.5h-8A.5.5 0 0 0 4 4v8.5a.5.5 0 0 0 .5.5H5" />
+  </Svg>
+);
+
+export const EditIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12.5 4.5 15.5 7.5 7.5 15.5H4.5v-3Z" />
+  </Svg>
+);

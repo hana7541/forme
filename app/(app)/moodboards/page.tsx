@@ -8,7 +8,16 @@ import { ListControls, ListSelectionBar, type SortOption } from "@/components/li
 import { useToast } from "@/components/Toast";
 import { useShell } from "@/components/shell/AppShell";
 import { PlusIcon } from "@/components/icons";
-import { createMoodboard, deleteMoodboard, fetchMoodboards, type MoodboardWithItems } from "@/lib/moodboards";
+import {
+  createMoodboard,
+  deleteMoodboard,
+  fetchMoodboards,
+  TEXT_FONT_FAMILY,
+  TEXT_LINE_HEIGHT,
+  TEXT_TRACKING_EM,
+  textStyleOf,
+  type MoodboardWithItems,
+} from "@/lib/moodboards";
 import { tr, useT, type Lang } from "@/lib/i18n";
 import { gridPath, signedUrls } from "@/lib/refs";
 
@@ -33,7 +42,7 @@ function BoardPreview({ board, urls }: { board: MoodboardWithItems; urls: Record
   return (
     <div className="relative aspect-[4/3] overflow-hidden border border-hairline" style={{ backgroundColor: board.background }}>
       <div
-        className="absolute"
+        className="absolute [container-type:inline-size]"
         style={{
           left: `${(1 - scaleW * 0.86) * 50}%`,
           top: `${(1 - scaleH * 0.86) * 50}%`,
@@ -42,6 +51,37 @@ function BoardPreview({ board, urls }: { board: MoodboardWithItems; urls: Record
         }}
       >
         {items.slice(-40).map((i) => {
+          if (i.kind === "text") {
+            // 글자 크기를 카드 너비에 비례하게 (cqw) 줄여서 보드와 같은 모양으로
+            const s = textStyleOf(i);
+            return (
+              <div
+                key={i.id}
+                aria-hidden="true"
+                className="absolute overflow-hidden"
+                style={{
+                  left: `${((i.x - minX) / w) * 100}%`,
+                  top: `${((i.y - minY) / h) * 100}%`,
+                  width: `${(i.width / w) * 100}%`,
+                  maxHeight: `${((maxY - i.y) / h) * 100}%`,
+                  zIndex: i.z_index,
+                  transform: i.rotation ? `rotate(${i.rotation}deg)` : undefined,
+                  fontFamily: TEXT_FONT_FAMILY,
+                  fontSize: `${(s.size / w) * 100}cqw`,
+                  fontWeight: s.weight,
+                  color: s.color,
+                  textAlign: s.align,
+                  lineHeight: TEXT_LINE_HEIGHT,
+                  letterSpacing: `${TEXT_TRACKING_EM}em`,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "keep-all",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {i.content}
+              </div>
+            );
+          }
           const path = i.refs ? gridPath(i.refs) : null;
           return (
             <div
@@ -52,6 +92,8 @@ function BoardPreview({ board, urls }: { board: MoodboardWithItems; urls: Record
                 top: `${((i.y - minY) / h) * 100}%`,
                 width: `${(i.width / w) * 100}%`,
                 height: `${(i.height / h) * 100}%`,
+                zIndex: i.z_index,
+                transform: i.rotation ? `rotate(${i.rotation}deg)` : undefined,
                 backgroundColor: i.refs?.dominant_color ?? "#f4f4f2",
               }}
             >

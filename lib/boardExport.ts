@@ -3,7 +3,13 @@
 // - 브라우저 캔버스 한계(특히 iPhone Safari 약 1,600만 화소)를 넘지 않게 크기를 맞춤
 import { tr } from "@/lib/i18n";
 import { signedUrls } from "@/lib/refs";
-import type { BoardItem } from "@/lib/moodboards";
+import {
+  TEXT_FONT_FAMILY,
+  TEXT_LINE_HEIGHT,
+  TEXT_TRACKING_EM,
+  textStyleOf,
+  type BoardItem,
+} from "@/lib/moodboards";
 
 const PAD = 80; // 보드 가장자리 여백 (보드 단위)
 const MAX_SCALE = 2; // 화면보다 2배 선명하게
@@ -36,6 +42,66 @@ async function loadImage(url: string): Promise<Drawable> {
   } finally {
     URL.revokeObjectURL(objectUrl);
   }
+}
+
+// 화면의 줄바꿈(pre-wrap · keep-all · 넘치면 글자 단위)과 최대한 같게 줄 나누기
+export function wrapText(measure: (s: string) => number, text: string, maxWidth: number): string[] {
+  const lines: string[] = [];
+  for (const paragraph of text.split("\n")) {
+    if (!paragraph) {
+      lines.push("");
+      continue;
+    }
+    const tokens = paragraph.split(/(\s+)/).filter((tok) => tok.length);
+    let line = "";
+    for (const tok of tokens) {
+      const next = line + tok;
+      if (measure(next.trimEnd()) <= maxWidth || !line.trim()) {
+        if (measure(next.trimEnd()) <= maxWidth) {
+          line = next;
+          continue;
+        }
+      } else if (!/^\s+$/.test(tok)) {
+        lines.push(line.trimEnd());
+        line = "";
+        if (measure(tok) <= maxWidth) {
+          line = tok;
+          continue;
+        }
+      } else {
+        // 줄 끝 공백은 다음 줄로 넘기지 않음
+        lines.push(line.trimEnd());
+        line = "";
+        continue;
+      }
+      // 한 단어가 한 줄보다 길면 글자 단위로 자름
+      for (const ch of Array.from(tok)) {
+        if (line && measure(line + ch) > maxWidth) {
+          lines.push(line);
+          line = "";
+        }
+        line += ch;
+      }
+    }
+    lines.push(line.trimEnd());
+  }
+  return lines;
+}
+
+function drawText(ctx: CanvasRenderingContext2D, item: BoardItem, x: number, y: number, w: number, scale: number) {
+  const s = textStyleOf(item);
+  const size = s.size * scale;
+  ctx.font = `${s.weight} ${size}px ${TEXT_FONT_FAMILY}`;
+  // 화면과 같은 자간 (지원하는 브라우저에서)
+  const c = ctx as CanvasRenderingContext2D & { letterSpacing?: string };
+  if ("letterSpacing" in c) c.letterSpacing = `${TEXT_TRACKING_EM * size}px`;
+  ctx.fillStyle = s.color;
+  ctx.textBaseline = "middle";
+  ctx.textAlign = s.align;
+  const lineHeight = size * TEXT_LINE_HEIGHT;
+  const lines = wrapText((str) => ctx.measureText(str).width, item.content ?? "", w);
+  const ax = s.align === "center" ? x + w / 2 : s.align === "right" ? x + w : x;
+  lines.forEach((line, n) => ctx.fillText(line, ax, y + lineHeight * (n + 0.5)));
 }
 
 async function runPool<T>(items: T[], limit: number, worker: (item: T) => Promise<void>) {
@@ -71,12 +137,19 @@ export async function renderBoard(
   ctx.fillStyle = background;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+  // 텍스트에 쓰인 글꼴 굵기를 미리 불러 둠 (안 하면 기본 글꼴로 그려질 수 있음)
+  const texts = items.filter((i) => i.kind === "text");
+  if (texts.length && typeof document !== "undefined" && document.fonts) {
+    const weights = [...new Set(texts.map((i) => textStyleOf(i).weight))];
+    await Promise.all(weights.map((w) => document.fonts.load(`${w} 40px ${TEXT_FONT_FAMILY}`, "가A").catch(() => []))).catch(() => {});
+  }
+
   // 원본 이미지 받기 (4장씩)
-  const withRef = items.filter((i) => i.refs);
+  const withRef = items.filter((i) => i.kind !== "text" && i.refs);
   const urls = await signedUrls(withRef.map((i) => i.refs!.storage_path)).catch(() => ({} as Record<string, string>));
   const loaded = new Map<string, Drawable>();
   let done = 0;
-  onProgress?.({ done, total: items.length });
+  onProgress?.({ done, total: withRef.length });
   await runPool(withRef, 4, async (item) => {
     const url = urls[item.refs!.storage_path];
     if (url) {
@@ -86,7 +159,7 @@ export async function renderBoard(
         // 못 받은 이미지는 대표색 칸으로 남김
       }
     }
-    onProgress?.({ done: ++done, total: items.length });
+    onProgress?.({ done: ++done, total: withRef.length });
   });
 
   // 겹침 순서대로 그리기
@@ -103,7 +176,9 @@ export async function renderBoard(
       ctx.translate(-(x + w / 2), -(y + h / 2));
     }
     const img = loaded.get(item.id);
-    if (img && img.width && img.height) {
+    if (item.kind === "text") {
+      drawText(ctx, item, x, y, w, scale);
+    } else if (img && img.width && img.height) {
       // 화면과 같은 '가득 채우기' 자르기
       const boxRatio = w / h;
       const imgRatio = img.width / img.height;

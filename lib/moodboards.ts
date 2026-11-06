@@ -14,18 +14,54 @@ export type Moodboard = {
 
 export type BoardRefInfo = Pick<Ref, "id" | "title" | "storage_path" | "thumb_path" | "width" | "height" | "dominant_color">;
 
+export type TextAlign = "left" | "center" | "right";
+
+// 보드 위 요소 하나: 이미지(ref 있음) 또는 텍스트(ref 없음, content 있음)
 export type BoardItem = {
   id: string;
   moodboard_id: string;
-  ref_id: string;
+  kind: "image" | "text";
+  ref_id: string | null;
   x: number;
   y: number;
   width: number;
   height: number;
   rotation: number;
   z_index: number;
+  content: string | null;
+  font_size: number | null;
+  font_weight: number | null;
+  color: string | null;
+  align: TextAlign | null;
   refs: BoardRefInfo | null;
 };
+
+// 텍스트 기본값과 고를 수 있는 값
+export const TEXT_DEFAULTS = { font_size: 40, font_weight: 600, align: "left" as TextAlign, width: 360 };
+export const FONT_WEIGHTS: { value: number; label: string }[] = [
+  { value: 300, label: "Light" },
+  { value: 400, label: "Regular" },
+  { value: 500, label: "Medium" },
+  { value: 600, label: "SemiBold" },
+  { value: 700, label: "Bold" },
+];
+export const TEXT_COLORS = ["#111111", "#ffffff", "#6e6e6a", "#9b3d2e", "#2f4a3a", "#1f3a5f"];
+export const FONT_SIZE_MIN = 8;
+export const FONT_SIZE_MAX = 400;
+export const TEXT_LINE_HEIGHT = 1.2;
+export const TEXT_TRACKING_EM = -0.02;
+
+// 화면·내보내기·미리보기가 같은 글꼴을 쓰도록
+export const TEXT_FONT_FAMILY = '"Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif';
+
+export function textStyleOf(item: Pick<BoardItem, "font_size" | "font_weight" | "color" | "align">) {
+  return {
+    size: item.font_size ?? TEXT_DEFAULTS.font_size,
+    weight: item.font_weight ?? TEXT_DEFAULTS.font_weight,
+    color: item.color ?? "#111111",
+    align: item.align ?? TEXT_DEFAULTS.align,
+  };
+}
 
 export type MoodboardWithItems = Moodboard & { moodboard_items: BoardItem[] };
 
@@ -38,11 +74,12 @@ export const BACKGROUNDS = [
 
 const BOARD_COLUMNS = "id, name, background, collection_id, created_at, updated_at";
 const ITEM_COLUMNS =
-  "id, moodboard_id, ref_id, x, y, width, height, rotation, z_index, refs(id, title, storage_path, thumb_path, width, height, dominant_color)";
+  "id, moodboard_id, kind, ref_id, x, y, width, height, rotation, z_index, content, font_size, font_weight, color, align, refs(id, title, storage_path, thumb_path, width, height, dominant_color)";
 
 function normalizeItems(rows: unknown): BoardItem[] {
   return ((rows ?? []) as (Omit<BoardItem, "refs"> & { refs: BoardRefInfo | BoardRefInfo[] | null })[]).map((r) => ({
     ...r,
+    kind: r.kind === "text" ? "text" : "image",
     refs: Array.isArray(r.refs) ? r.refs[0] ?? null : r.refs,
   }));
 }
@@ -141,25 +178,76 @@ export async function addBoardItems(
   return normalizeItems(data);
 }
 
+// 저장할 칸만 골라서 (refs 같은 함께 불러온 정보는 빼고)
+function toRow(i: BoardItem) {
+  const base = {
+    id: i.id,
+    moodboard_id: i.moodboard_id,
+    kind: i.kind,
+    ref_id: i.kind === "text" ? null : i.ref_id,
+    x: Math.round(i.x),
+    y: Math.round(i.y),
+    width: Math.max(1, Math.round(i.width)),
+    height: Math.max(1, Math.round(i.height)),
+    rotation: i.rotation,
+    z_index: i.z_index,
+  };
+  if (i.kind !== "text") return { ...base, content: null, font_size: null, font_weight: null, color: null, align: null };
+  const s = textStyleOf(i);
+  return {
+    ...base,
+    content: (i.content ?? "").slice(0, 5000),
+    font_size: Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, Math.round(s.size))),
+    font_weight: s.weight,
+    color: s.color.toLowerCase(),
+    align: s.align,
+  };
+}
+
 export async function saveBoardItems(items: BoardItem[]): Promise<void> {
   if (!items.length) return;
-  const { error } = await getSupabase()
-    .from("moodboard_items")
-    .upsert(
-      items.map((i) => ({
-        id: i.id,
-        moodboard_id: i.moodboard_id,
-        ref_id: i.ref_id,
-        x: Math.round(i.x),
-        y: Math.round(i.y),
-        width: Math.round(i.width),
-        height: Math.round(i.height),
-        rotation: i.rotation,
-        z_index: i.z_index,
-      })),
-      { onConflict: "id" }
-    );
+  const { error } = await getSupabase().from("moodboard_items").upsert(items.map(toRow), { onConflict: "id" });
   if (error) throw error;
+}
+
+export async function addTextItem(
+  boardId: string,
+  fields: { x: number; y: number; z_index: number; content: string; color: string }
+): Promise<BoardItem> {
+  const { data, error } = await getSupabase()
+    .from("moodboard_items")
+    .insert({
+      moodboard_id: boardId,
+      kind: "text",
+      ref_id: null,
+      x: Math.round(fields.x),
+      y: Math.round(fields.y),
+      width: TEXT_DEFAULTS.width,
+      height: Math.round(TEXT_DEFAULTS.font_size * TEXT_LINE_HEIGHT),
+      z_index: fields.z_index,
+      content: fields.content,
+      font_size: TEXT_DEFAULTS.font_size,
+      font_weight: TEXT_DEFAULTS.font_weight,
+      color: fields.color.toLowerCase(),
+      align: TEXT_DEFAULTS.align,
+    })
+    .select(ITEM_COLUMNS)
+    .single();
+  if (error) throw error;
+  return normalizeItems([data])[0];
+}
+
+// 복제: 같은 내용·모양을 살짝 비켜서, 맨 앞에
+export async function duplicateBoardItems(items: BoardItem[], zStart: number, offset = 24): Promise<BoardItem[]> {
+  if (!items.length) return [];
+  const rows = items.map((i, n) => {
+    const { id: _id, ...rest } = toRow({ ...i, x: i.x + offset, y: i.y + offset, z_index: zStart + n + 1 });
+    void _id;
+    return rest;
+  });
+  const { data, error } = await getSupabase().from("moodboard_items").insert(rows).select(ITEM_COLUMNS);
+  if (error) throw error;
+  return normalizeItems(data);
 }
 
 export async function deleteBoardItems(ids: string[]): Promise<void> {

@@ -8,14 +8,19 @@ import { useShell } from "@/components/shell/AppShell";
 import { useT } from "@/lib/i18n";
 import { Dialog } from "@/components/Dialog";
 import { Button } from "@/components/ui";
-import { ChevronLeftIcon, DownloadIcon, PlusIcon, TrashIcon } from "@/components/icons";
+import { ChevronLeftIcon, DownloadIcon, PlusIcon, TextIcon, TrashIcon } from "@/components/icons";
+import { TextItem } from "@/components/moodboard/TextItem";
+import { SelectionToolbar, type Restack } from "@/components/moodboard/SelectionToolbar";
 import { MenuItem, Popover } from "@/components/Popover";
 import { exportBoardPdf, exportBoardPng, type ExportProgress } from "@/lib/boardExport";
 import { RefPicker } from "@/components/library/RefPicker";
 import { onRefCreated } from "@/lib/events";
 import {
   BACKGROUNDS,
+  TEXT_DEFAULTS,
   addBoardItems,
+  addTextItem,
+  duplicateBoardItems,
   deleteBoardItems,
   deleteMoodboard,
   saveBoardItems,
@@ -26,7 +31,7 @@ import {
 import { gridPath, signedUrls, type Ref } from "@/lib/refs";
 
 type Drag =
-  | { kind: "move"; id: string; sx: number; sy: number; ox: number; oy: number }
+  | { kind: "move"; id: string; sx: number; sy: number; ox: number; oy: number; moved: boolean; wasSelected: boolean; pointer: string }
   | { kind: "resize"; id: string; sx: number; sy: number; ow: number; oh: number; ratio: number }
   | { kind: "pan"; sx: number; sy: number; px: number; py: number };
 
@@ -61,6 +66,9 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
   const [picking, setPicking] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [dragging, setDragging] = useState(false);
+  // 텍스트 편집 중인 요소, 방금 만든 텍스트(전체 선택해서 바로 덮어 쓰게)
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [freshTextId, setFreshTextId] = useState<string | null>(null);
   const [exporting, setExporting] = useState<{ kind: "png" | "pdf"; progress: ExportProgress | null } | null>(null);
   const savedName = useRef(initial.name);
 
@@ -197,9 +205,15 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
       if (d.kind === "pan") {
         setPan({ x: d.px + (e.clientX - d.sx), y: d.py + (e.clientY - d.sy) });
       } else if (d.kind === "move") {
+        if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 4) return;
+        d.moved = true;
         const x = d.ox + (e.clientX - d.sx) / z;
         const y = d.oy + (e.clientY - d.sy) / z;
         setItems((prev) => prev.map((i) => (i.id === d.id ? { ...i, x, y } : i)));
+      } else if (itemsRef.current.find((i) => i.id === d.id)?.kind === "text") {
+        // 텍스트: 너비만 바꾸고 높이는 글에 맞춰 저절로
+        const w = Math.max(MIN_SIZE, d.ow + (e.clientX - d.sx) / z);
+        setItems((prev) => prev.map((i) => (i.id === d.id ? { ...i, width: w } : i)));
       } else {
         // 오른쪽 아래 손잡이: 비율 유지 (Shift를 누르면 자유롭게)
         let w = Math.max(MIN_SIZE, d.ow + (e.clientX - d.sx) / z);
@@ -218,7 +232,17 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
       const d = drag.current;
       drag.current = null;
       setDragging(false);
-      if (d && d.kind !== "pan") markDirty([d.id]);
+      if (!d || d.kind === "pan") return;
+      if (d.kind === "move" && !d.moved) {
+        // 손가락으로 이미 고른 텍스트를 한 번 더 누르면 편집 (마우스는 더블클릭)
+        const it = itemsRef.current.find((i) => i.id === d.id);
+        if (it?.kind === "text" && d.wasSelected && d.pointer !== "mouse") {
+          setFreshTextId(null);
+          setEditingId(d.id);
+        }
+        return;
+      }
+      markDirty([d.id]);
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
@@ -230,8 +254,14 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
     };
   }, [markDirty]);
 
+  // 편집 중인 입력칸을 닫음 (닫힐 때 내용이 저장됨)
+  function stopEditing() {
+    if (editingId) (document.activeElement as HTMLElement | null)?.blur?.();
+  }
+
   function startPan(e: React.PointerEvent) {
     if (e.button !== 0 && e.button !== 1) return;
+    stopEditing();
     setSelectedId(null);
     drag.current = { kind: "pan", sx: e.clientX, sy: e.clientY, px: pan.x, py: pan.y };
     setDragging(true);
@@ -240,9 +270,23 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
   function startMove(e: React.PointerEvent, item: BoardItem) {
     if (e.button !== 0) return;
     e.stopPropagation();
+    // 편집 중인 텍스트 안을 누르면 글자 선택에 맡김
+    if (item.id === editingId) return;
+    stopEditing();
     e.preventDefault();
+    const wasSelected = selectedId === item.id;
     setSelectedId(item.id);
-    drag.current = { kind: "move", id: item.id, sx: e.clientX, sy: e.clientY, ox: item.x, oy: item.y };
+    drag.current = {
+      kind: "move",
+      id: item.id,
+      sx: e.clientX,
+      sy: e.clientY,
+      ox: item.x,
+      oy: item.y,
+      moved: false,
+      wasSelected,
+      pointer: e.pointerType,
+    };
     setDragging(true);
   }
 
@@ -263,7 +307,7 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
 
   // ---------- 겹침 순서 · 빼기 ----------
   const restack = useCallback(
-    (id: string, how: "front" | "back" | "forward" | "backward") => {
+    (id: string, how: Restack) => {
       const sorted = [...itemsRef.current].sort((a, b) => a.z_index - b.z_index);
       const idx = sorted.findIndex((i) => i.id === id);
       if (idx < 0) return;
@@ -283,6 +327,7 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
       const before = itemsRef.current;
       setItems((prev) => prev.filter((i) => i.id !== id));
       setSelectedId(null);
+      setEditingId((cur) => (cur === id ? null : cur));
       dirty.current.delete(id);
       try {
         await deleteBoardItems([id]);
@@ -300,6 +345,16 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
       if (isTyping(e.target)) return;
       const id = selectedId;
       if (e.key === "Escape") setSelectedId(null);
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && (e.key === "t" || e.key === "T")) {
+        e.preventDefault();
+        void addTextRef.current();
+        return;
+      }
+      if (id && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        void duplicateRef.current(id);
+        return;
+      }
       if (!id) {
         if (e.key === "0" && (e.metaKey || e.ctrlKey)) {
           e.preventDefault();
@@ -344,6 +399,81 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
       }
     },
     [initial.id, centerWorld, show]
+  );
+
+  // ---------- 텍스트 ----------
+  // 화면 가운데에 새 글 상자를 만들고 바로 편집
+  const addText = useCallback(async () => {
+    const el = viewport.current;
+    const { zoom: z, pan: p } = view.current;
+    const cx = ((el?.clientWidth ?? 800) / 2 - p.x) / z;
+    const cy = ((el?.clientHeight ?? 600) / 2 - p.y) / z;
+    try {
+      const item = await addTextItem(initial.id, {
+        x: cx - TEXT_DEFAULTS.width / 2,
+        y: cy - TEXT_DEFAULTS.font_size / 2,
+        z_index: maxZ() + 1,
+        content: t("텍스트"),
+        color: background === "#1a1a1a" ? "#ffffff" : "#111111",
+      });
+      setItems((prev) => [...prev, item]);
+      setSelectedId(item.id);
+      setFreshTextId(item.id);
+      setEditingId(item.id);
+      setSaveState("saved");
+    } catch {
+      show(t("텍스트를 넣지 못했어요."));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initial.id, background, show, t]);
+
+  const duplicate = useCallback(
+    async (id: string) => {
+      const item = itemsRef.current.find((i) => i.id === id);
+      if (!item) return;
+      await flush();
+      try {
+        const [copy] = await duplicateBoardItems([item], maxZ());
+        if (!copy) return;
+        setItems((prev) => [...prev, copy]);
+        setSelectedId(copy.id);
+        setSaveState("saved");
+      } catch {
+        show(t("복제하지 못했어요."));
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [flush, show, t]
+  );
+
+  // 키보드 처리에서 최신 함수를 쓰도록
+  const addTextRef = useRef(addText);
+  addTextRef.current = addText;
+  const duplicateRef = useRef(duplicate);
+  duplicateRef.current = duplicate;
+
+  // 편집 끝: 비었으면 지우고, 아니면 저장
+  const endEdit = useCallback(
+    (id: string) => {
+      setEditingId((cur) => (cur === id ? null : cur));
+      setFreshTextId(null);
+      const item = itemsRef.current.find((i) => i.id === id);
+      if (!item) return;
+      if (!(item.content ?? "").trim()) void removeItem(id);
+      else void flush();
+    },
+    [removeItem, flush]
+  );
+
+  // 글 상자 높이가 바뀌면 기록 (내보내기·화면 맞춤에 씀)
+  const measureText = useCallback(
+    (id: string, height: number) => {
+      const item = itemsRef.current.find((i) => i.id === id);
+      if (!item || !height || Math.abs(item.height - height) < 0.5) return;
+      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, height } : i)));
+      markDirty([id]);
+    },
+    [markDirty]
   );
 
   // 이 화면에서 이미지를 끌어다 놓거나 붙여넣으면: 라이브러리에 올리고 보드에도 놓음
@@ -498,6 +628,16 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
               </>
             )}
           </Popover>
+          <button
+            type="button"
+            onClick={() => void addText()}
+            aria-label={t("텍스트 추가 (T)")}
+            title={t("텍스트 추가 (T)")}
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-hairline px-3 text-[13px] font-medium transition-colors hover:border-ink sm:px-4"
+          >
+            <TextIcon size={16} />
+            <span className="hidden sm:inline">{t("텍스트")}</span>
+          </button>
           <button type="button" onClick={() => setPicking(true)} className="inline-flex h-10 items-center gap-2 rounded-full bg-ink px-4 text-[13px] font-medium text-paper hover:opacity-85">
             <PlusIcon size={15} />
             {t("이미지 추가")}
@@ -520,6 +660,29 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
           style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
         >
           {sortedItems.map((item) => {
+            if (item.kind === "text") {
+              return (
+                <TextItem
+                  key={item.id}
+                  item={item}
+                  selected={item.id === selectedId}
+                  editing={item.id === editingId}
+                  selectAllOnEdit={item.id === freshTextId}
+                  zoom={zoom}
+                  outline={dark ? "#ffffff" : "#000000"}
+                  onPointerDown={(e) => startMove(e, item)}
+                  onDoubleClick={() => {
+                    setSelectedId(item.id);
+                    setFreshTextId(null);
+                    setEditingId(item.id);
+                  }}
+                  onResizeStart={(e) => startResize(e, item)}
+                  onMeasure={(h) => measureText(item.id, h)}
+                  onChange={(content) => patchItem(item.id, { content })}
+                  onEditEnd={() => endEdit(item.id)}
+                />
+              );
+            }
             const path = item.refs ? gridPath(item.refs) : null;
             const url = path ? urls[path] : undefined;
             const isSel = item.id === selectedId;
@@ -573,28 +736,26 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
             <div className={`max-w-sm text-center ${dark ? "text-white/70" : "text-graphite"}`}>
               <p className={`text-[22px] font-semibold tracking-[-0.03em] ${dark ? "text-white" : "text-ink"}`}>{t("빈 무드보드예요")}</p>
               <p className="mt-2 text-[14px] leading-relaxed">
-                {t("‘이미지 추가’로 라이브러리에서 고르거나, 파일을 이 화면에 끌어다 놓으세요. 올린 이미지는 라이브러리에도 저장돼요.")}
+                {t("‘이미지 추가’로 라이브러리에서 고르거나, 파일을 이 화면에 끌어다 놓으세요. ‘텍스트’로 글도 쓸 수 있어요.")}
               </p>
             </div>
           </div>
         )}
 
-        {/* 고른 이미지용 작은 도구 */}
+        {/* 고른 요소용 도구 (고른 것이 있을 때만) */}
         {selected && (
-          <div
-            onPointerDown={(e) => e.stopPropagation()}
-            className="absolute left-1/2 top-4 z-[5] flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-hairline bg-paper p-1"
-          >
-            <button type="button" className={toolBtn} onClick={() => restack(selected.id, "front")}>
-              {t("맨 앞으로")}
-            </button>
-            <button type="button" className={toolBtn} onClick={() => restack(selected.id, "back")}>
-              {t("맨 뒤로")}
-            </button>
-            <button type="button" className={`${toolBtn} hover:text-red-600`} onClick={() => void removeItem(selected.id)}>
-              {t("보드에서 빼기")}
-            </button>
-          </div>
+          <SelectionToolbar
+            item={selected}
+            editing={selected.id === editingId}
+            onPatch={(patch) => patchItem(selected.id, patch)}
+            onEdit={() => {
+              setFreshTextId(null);
+              setEditingId(selected.id);
+            }}
+            onDuplicate={() => void duplicate(selected.id)}
+            onDelete={() => void removeItem(selected.id)}
+            onRestack={(how) => restack(selected.id, how)}
+          />
         )}
 
         {/* 확대 · 축소 */}
@@ -617,7 +778,7 @@ export function BoardEditor({ initial }: { initial: MoodboardWithItems }) {
         </div>
 
         <p className={`pointer-events-none absolute bottom-5 left-5 z-[5] hidden text-[12px] lg:block ${dark ? "text-white/50" : "text-graphite"}`}>
-          {t("빈 곳을 끌면 화면 이동, 핀치로 확대, Delete로 빼기, [ ]로 겹침 순서")}
+          {t("빈 곳을 끌면 화면 이동 · 핀치로 확대 · T 텍스트 · 더블클릭 편집 · ⌘D 복제 · Delete 빼기 · [ ] 겹침 순서")}
         </p>
       </div>
 

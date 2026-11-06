@@ -38,7 +38,14 @@ export type BackupManifest = {
   moodboards: { id: string; name: string; background: string; collection_id: string | null }[];
   moodboard_items: {
     moodboard_id: string;
-    ref_id: string;
+    // 예전 백업에는 kind가 없음 → 이미지로 봄
+    kind?: "image" | "text";
+    ref_id: string | null;
+    content?: string | null;
+    font_size?: number | null;
+    font_weight?: number | null;
+    color?: string | null;
+    align?: string | null;
     x: number;
     y: number;
     width: number;
@@ -111,7 +118,7 @@ export async function exportBackup(
     fetchAllRows("collections", "id, name, description, cover_ref_id, created_at", "created_at"),
     fetchAllRows("collection_refs", "collection_id, ref_id, sort_order, added_at", "added_at"),
     fetchAllRows("moodboards", "id, name, background, collection_id", "created_at"),
-    fetchAllRows("moodboard_items", "moodboard_id, ref_id, x, y, width, height, rotation, z_index", "created_at"),
+    fetchAllRows("moodboard_items", "moodboard_id, kind, ref_id, content, font_size, font_weight, color, align, x, y, width, height, rotation, z_index", "created_at"),
   ]);
 
   // 범위를 골랐으면, 그 레퍼런스와 연결된 것만 남김
@@ -155,8 +162,13 @@ export async function exportBackup(
       .filter((c) => colIds.has(c.id as string))
       .map((c) => (c.cover_ref_id && !refIds.has(c.cover_ref_id as string) ? { ...c, cover_ref_id: null } : c));
 
-    items = allItems.filter((i) => refIds.has(i.ref_id as string));
-    const boardIds = new Set(items.map((i) => i.moodboard_id as string));
+    // 고른 이미지가 들어 있는 보드만 담고, 그 보드의 텍스트도 함께
+    const boardIds = new Set(
+      allItems.filter((i) => i.ref_id && refIds.has(i.ref_id as string)).map((i) => i.moodboard_id as string)
+    );
+    items = allItems.filter((i) =>
+      i.kind === "text" ? boardIds.has(i.moodboard_id as string) : refIds.has(i.ref_id as string)
+    );
     moodboards = allMoodboards
       .filter((b) => boardIds.has(b.id as string))
       .map((b) => (b.collection_id && !colIds.has(b.collection_id as string) ? { ...b, collection_id: null } : b));
@@ -427,10 +439,24 @@ export async function restoreBackup(
       const rows = (manifest.moodboard_items ?? [])
         .filter((i) => i.moodboard_id === b.id)
         .flatMap((i) => {
-          const ref_id = refMap.get(i.ref_id);
-          return ref_id
-            ? [{ moodboard_id: boardId, ref_id, x: i.x, y: i.y, width: i.width, height: i.height, rotation: i.rotation ?? 0, z_index: i.z_index ?? 0 }]
-            : [];
+          const base = { moodboard_id: boardId, x: i.x, y: i.y, width: i.width, height: i.height, rotation: i.rotation ?? 0, z_index: i.z_index ?? 0 };
+          if (i.kind === "text") {
+            if (!i.content) return [];
+            return [
+              {
+                ...base,
+                kind: "text",
+                ref_id: null,
+                content: i.content.slice(0, 5000),
+                font_size: i.font_size ?? null,
+                font_weight: i.font_weight ?? null,
+                color: i.color ?? null,
+                align: i.align ?? null,
+              },
+            ];
+          }
+          const ref_id = i.ref_id ? refMap.get(i.ref_id) : undefined;
+          return ref_id ? [{ ...base, kind: "image", ref_id }] : [];
         });
       for (let k = 0; k < rows.length; k += 500) {
         await supabase.from("moodboard_items").insert(rows.slice(k, k + 500));
